@@ -1,0 +1,23 @@
+[package]
+name = "bevy-llm"
+version = "0.1.0"
+edition = "2024"
+
+[workspace]
+members = [".", "examples/*"]
+
+[workspace.dependencies]
+rand = "0.10.1"
+
+[workspace.dependencies.bevy]
+git = "https://github.com/bevyengine/bevy.git"
+rev = "aaec9e8d5b1a21cfaf09881e051d1ca39ffb3377"
+default-features = false
+
+[dependencies]
+rig-core = "0.35.0"
+tokio = { version = "1.52.1", features = ["rt-multi-thread"] }
+bevy = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
