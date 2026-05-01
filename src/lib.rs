@@ -1,10 +1,13 @@
 pub mod agent;
 pub mod prelude;
+pub mod tool;
 
 pub use rig::agent::MultiTurnStreamItem;
 pub use rig::message::Message;
+pub use rig::message::ToolResultContent;
 pub use rig::providers::deepseek::Client;
 pub use rig::streaming::StreamedAssistantContent;
+pub use rig::streaming::StreamedUserContent;
 
 use agent::{Agent, AgentStatus};
 use bevy::prelude::*;
