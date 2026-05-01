@@ -20,9 +20,9 @@ fn setup(
     add_to_counter: Res<ToolAdapter<AddToCounter>>,
     get_counter: Res<ToolAdapter<GetCounter>>,
 ) {
-    let client = Client::from_env();
+    let client = Client::from_env().unwrap();
     let agent = client
-        .agent(DEEPSEEK_CHAT)
+        .agent(DEEPSEEK_V4_FLASH)
         .default_max_turns(usize::MAX - 1)
         .tool(add_to_counter.clone())
         .tool(get_counter.clone())
