@@ -12,7 +12,7 @@ serde = "1.0.228"
 
 [workspace.dependencies.bevy]
 git = "https://github.com/bevyengine/bevy.git"
-rev = "aaec9e8d5b1a21cfaf09881e051d1ca39ffb3377"
+rev = "638c5dd29778c9ea718d44996b4832ed600c0169" # 2026/05/01
 default-features = false
 
 [dependencies]
