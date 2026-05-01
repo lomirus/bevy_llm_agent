@@ -1,10 +1,11 @@
 pub use rig::completion::ToolDefinition;
 pub use rig::tool::Tool as RigTool;
 pub use rig::tool::ToolError;
+pub use schemars::JsonSchema;
 
 use bevy::{ecs::system::BoxedSystem, prelude::*};
 use serde::{Serialize, de::DeserializeOwned};
-use std::{fmt::Debug, sync::Mutex};
+use std::{any::type_name, fmt::Debug, sync::Mutex};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 pub trait AppExt {
@@ -13,6 +14,9 @@ pub trait AppExt {
 
 impl AppExt for App {
     fn register_llm_tool<T: Tool>(&mut self) -> &mut Self {
+        // Validate the generated schema on the main thread during app setup.
+        T::definition();
+
         let (sender, receiver) = unbounded_channel();
 
         self.add_message::<ToolRequest<T>>()
@@ -26,10 +30,30 @@ impl AppExt for App {
 pub trait Tool: 'static + Sync + Send {
     const NAME: &'static str;
 
-    type Args: Send + Sync + 'static + DeserializeOwned;
+    type Args: Send + Sync + 'static + DeserializeOwned + JsonSchema;
     type Output: Send + Serialize + Debug;
 
-    fn definition() -> ToolDefinition;
+    fn definition() -> ToolDefinition {
+        let parameters = serde_json::json!(schemars::schema_for!(Self::Args));
+        let description = parameters
+            .get("description")
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_else(|| {
+                panic!(
+                    "tool `{}` args type `{}` is missing a schema description; add a doc comment to the args struct",
+                    Self::NAME,
+                    type_name::<Self::Args>()
+                )
+            })
+            .to_string();
+
+        ToolDefinition {
+            name: Self::NAME.to_string(),
+            description,
+            parameters,
+        }
+    }
+
     fn boxed_system() -> BoxedSystem;
 }
 

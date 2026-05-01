@@ -388,7 +388,9 @@ dependencies = [
  "bevy",
  "rand 0.10.1",
  "rig-core",
+ "schemars",
  "serde",
+ "serde_json",
  "tokio",
 ]
 
@@ -2057,8 +2059,8 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy-llm",
+ "schemars",
  "serde",
- "serde_json",
 ]
 
 [[package]]

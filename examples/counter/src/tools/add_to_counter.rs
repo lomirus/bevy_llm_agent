@@ -1,14 +1,15 @@
 use bevy::{ecs::system::BoxedSystem, prelude::*};
-use bevy_llm::tool::{Tool, ToolDefinition, ToolRequest};
+use bevy_llm::tool::{JsonSchema, Tool, ToolRequest};
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::Counter;
 
 pub(crate) struct AddToCounter;
 
-#[derive(Deserialize)]
+/// Add an unsigned integer value to counter.
+#[derive(Deserialize, JsonSchema)]
 pub(crate) struct AddToCounterArgs {
+    /// The unsigned integer value added to counter.
     increment: usize,
 }
 
@@ -17,24 +18,6 @@ impl Tool for AddToCounter {
 
     type Args = AddToCounterArgs;
     type Output = ();
-
-    fn definition() -> ToolDefinition {
-        ToolDefinition {
-            name: "add_to_counter".to_string(),
-            description: "Add an unsigned integer value to counter".to_string(),
-            parameters: json!({
-                "type": "object",
-                "properties": {
-                    "increment": {
-                        "type": "integer",
-                        "description": "The unsigned integer value added to counter",
-                    }
-                },
-                "required": ["increment"],
-                "additionalProperties": false
-            }),
-        }
-    }
 
     fn boxed_system() -> BoxedSystem {
         Box::new(IntoSystem::into_system(add_to_counter))
