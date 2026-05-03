@@ -1,0 +1,15 @@
+[package]
+name = "werewolf"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true, features = [
+    "ui",
+    "experimental_bevy_feathers",
+    "system_font_discovery",
+    "debug",
+    "dynamic_linking",
+] }
+bevy-llm = { path = "../../" }
+rand = { workspace = true }
