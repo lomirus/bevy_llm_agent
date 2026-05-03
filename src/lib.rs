@@ -2,21 +2,21 @@ pub mod agent;
 pub mod prelude;
 pub mod tool;
 
-pub use rig::agent::MultiTurnStreamItem;
+pub use rig::agent::MultiTurnStreamItem as MultiTurnItem;
 pub use rig::message::Message;
 pub use rig::message::ToolResultContent;
 pub use rig::providers::deepseek::Client;
-pub use rig::streaming::StreamedAssistantContent;
-pub use rig::streaming::StreamedUserContent;
+pub use rig::streaming::StreamedAssistantContent as AssistantContent;
+pub use rig::streaming::StreamedUserContent as UserContent;
 
 use agent::{Agent, AgentStatus};
 use bevy::prelude::*;
-use rig::providers::deepseek::StreamingCompletionResponse;
+use rig::providers::deepseek::StreamingCompletionResponse as CompletionResponse;
 
 #[derive(Message)]
 pub struct StreamMessage {
     pub entity: Entity,
-    pub delta: MultiTurnStreamItem<StreamingCompletionResponse>,
+    pub delta: MultiTurnItem<CompletionResponse>,
 }
 
 pub struct LlmPlugin;

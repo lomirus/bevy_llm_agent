@@ -7,8 +7,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm::{
-    Client, LlmPlugin, MultiTurnStreamItem, StreamedAssistantContent, StreamedUserContent,
-    ToolResultContent, agent::Agent, prelude::*, tool::ToolAdapter,
+    AssistantContent, Client, LlmPlugin, MultiTurnItem, ToolResultContent, UserContent,
+    agent::Agent, prelude::*, tool::ToolAdapter,
 };
 use tools::{AddToCounter, GetCounter};
 
@@ -41,12 +41,12 @@ fn print_text(
 ) {
     for stream_message in stream_messages.read() {
         match &stream_message.delta {
-            MultiTurnStreamItem::StreamAssistantItem(message) => match message {
-                StreamedAssistantContent::Text(text) => {
+            MultiTurnItem::StreamAssistantItem(message) => match message {
+                AssistantContent::Text(text) => {
                     print!("{text}");
                     std::io::stdout().flush().unwrap();
                 }
-                StreamedAssistantContent::ToolCall { tool_call, .. } => {
+                AssistantContent::ToolCall { tool_call, .. } => {
                     println!();
                     info!(
                         "[TOOL CALL] {}({})",
@@ -55,17 +55,14 @@ fn print_text(
                 }
                 _ => {}
             },
-            MultiTurnStreamItem::StreamUserItem(StreamedUserContent::ToolResult {
-                tool_result,
-                ..
-            }) => {
+            MultiTurnItem::StreamUserItem(UserContent::ToolResult { tool_result, .. }) => {
                 let text = match tool_result.content.first() {
                     ToolResultContent::Text(text) => text.text,
                     ToolResultContent::Image(_) => "<image>".to_string(),
                 };
                 info!("[TOOL RESULT] {:?}", text);
             }
-            MultiTurnStreamItem::FinalResponse(..) => {
+            MultiTurnItem::FinalResponse(..) => {
                 app_exit.write(if counter.0 > 10 {
                     AppExit::Success
                 } else {
