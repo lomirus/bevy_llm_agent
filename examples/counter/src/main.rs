@@ -30,7 +30,6 @@ fn setup(
     let mut agent = Agent::new(agent);
     agent.streaming_chat(
         "By calling add_to_counter, the final value obtained by get_counter is greater than 10.",
-        Vec::<bevy_llm::Message>::new(),
     );
     commands.spawn(agent);
 }

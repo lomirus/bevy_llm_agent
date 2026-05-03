@@ -9,7 +9,7 @@ use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 #[derive(Component)]
 pub struct Agent {
     agent: rig::agent::Agent<CompletionModel>,
-    dialog: Vec<rig::message::Message>,
+    pub dialog: Vec<rig::message::Message>,
     pub(crate) status: AgentStatus,
 }
 
@@ -22,15 +22,11 @@ impl Agent {
         }
     }
 
-    pub fn streaming_chat<I, T>(
+    pub fn streaming_chat(
         &mut self,
         prompt: impl Into<rig::message::Message> + rig::wasm_compat::WasmCompatSend,
-        chat_history: I,
-    ) where
-        I: IntoIterator<Item = T> + Send,
-        T: Into<rig::message::Message>,
-    {
-        let req = self.agent.stream_chat(prompt, chat_history);
+    ) {
+        let req = self.agent.stream_chat(prompt, self.dialog.clone());
 
         let (tx, rx) = unbounded_channel();
         self.status = AgentStatus::Streaming(rx);
