@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use bevy_llm_agent::{
-    Client, LlmPlugin, MultiTurnItem, AssistantContent, agent::Agent, prelude::*,
+    Client, LlmAgentPlugin, MultiTurnItem, AssistantContent, agent::Agent, prelude::*,
 };
 
 fn setup(mut commands: Commands) {
@@ -28,7 +28,7 @@ fn update_text(
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, LlmPlugin))
+        .add_plugins((DefaultPlugins, LlmAgentPlugin))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, update_text)
         .run();

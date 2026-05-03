@@ -7,7 +7,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AssistantContent, Client, LlmPlugin, MultiTurnItem, ToolResultContent, UserContent,
+    AssistantContent, Client, LlmAgentPlugin, MultiTurnItem, ToolResultContent, UserContent,
     agent::Agent, prelude::*, tool::ToolAdapter,
 };
 use tools::{AddToCounter, GetCounter};
@@ -35,7 +35,7 @@ fn setup(
 }
 
 fn print_text(
-    mut stream_messages: MessageReader<bevy_llm::StreamMessage>,
+    mut stream_messages: MessageReader<bevy_llm_agent::StreamMessage>,
     mut app_exit: MessageWriter<AppExit>,
     counter: Res<Counter>,
 ) {
@@ -82,7 +82,7 @@ fn main() {
                 filter: format!("{DEFAULT_FILTER},rig::agent::prompt_request::streaming=warn"),
                 ..default()
             }),
-            LlmPlugin,
+            LlmAgentPlugin,
         ))
         .register_llm_tool::<AddToCounter>()
         .register_llm_tool::<GetCounter>()

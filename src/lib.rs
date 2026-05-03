@@ -19,9 +19,9 @@ pub struct StreamMessage {
     pub delta: MultiTurnItem<CompletionResponse>,
 }
 
-pub struct LlmPlugin;
+pub struct LlmAgentPlugin;
 
-impl Plugin for LlmPlugin {
+impl Plugin for LlmAgentPlugin {
     fn build(&self, app: &mut bevy::app::App) {
         app.add_message::<StreamMessage>()
             .add_systems(FixedUpdate, read_stream);
