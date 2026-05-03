@@ -1,6 +1,6 @@
 use bevy::prelude::*;
-use bevy_llm::{
-    Client, LlmPlugin, MultiTurnStreamItem, StreamedAssistantContent, agent::Agent, prelude::*,
+use bevy_llm_agent::{
+    Client, LlmPlugin, MultiTurnItem, AssistantContent, agent::Agent, prelude::*,
 };
 
 fn setup(mut commands: Commands) {
@@ -14,11 +14,11 @@ fn setup(mut commands: Commands) {
 
 fn update_text(
     mut texts: Query<&mut Text>,
-    mut stream_messages: MessageReader<bevy_llm::StreamMessage>,
+    mut stream_messages: MessageReader<bevy_llm_agent::StreamMessage>,
 ) {
     for stream_message in stream_messages.read() {
         let mut text = texts.get_mut(stream_message.entity).unwrap();
-        if let MultiTurnStreamItem::StreamAssistantItem(StreamedAssistantContent::Text(delta)) =
+        if let MultiTurnItem::StreamAssistantItem(AssistantContent::Text(delta)) =
             &stream_message.delta
         {
             text.push_str(delta.text())

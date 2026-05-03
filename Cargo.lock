@@ -382,7 +382,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy-llm"
+name = "bevy-llm-agent"
 version = "0.1.0"
 dependencies = [
  "bevy",
@@ -2058,7 +2058,7 @@ name = "counter"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy-llm",
+ "bevy-llm-agent",
  "schemars",
  "serde",
 ]
@@ -2919,7 +2919,7 @@ name = "hello_world"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "bevy-llm",
+ "bevy-llm-agent",
 ]
 
 [[package]]

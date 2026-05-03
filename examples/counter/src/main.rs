@@ -6,7 +6,7 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
-use bevy_llm::{
+use bevy_llm_agent::{
     AssistantContent, Client, LlmPlugin, MultiTurnItem, ToolResultContent, UserContent,
     agent::Agent, prelude::*, tool::ToolAdapter,
 };

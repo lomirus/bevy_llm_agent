@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 bevy = { workspace = true, features = ["ui"]}
-bevy-llm = { path = "../../" }
+bevy-llm-agent = { path = "../../" }

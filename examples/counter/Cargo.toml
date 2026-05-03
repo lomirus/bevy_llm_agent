@@ -5,6 +5,6 @@ edition = "2024"
 
 [dependencies]
 bevy = { workspace = true, features = ["bevy_log"]}
-bevy-llm = { path = "../../" }
+bevy-llm-agent = { path = "../../" }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
