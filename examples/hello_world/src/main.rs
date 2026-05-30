@@ -1,6 +1,9 @@
-use bevy::prelude::*;
+use bevy::{
+    log::{DEFAULT_FILTER, LogPlugin},
+    prelude::*,
+};
 use bevy_llm_agent::{
-    Client, LlmAgentPlugin, MultiTurnItem, AssistantContent, agent::Agent, prelude::*,
+    AssistantContent, Client, LlmAgentPlugin, MultiTurnItem, agent::Agent, prelude::*,
 };
 
 fn setup(mut commands: Commands) {
@@ -28,7 +31,14 @@ fn update_text(
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, LlmAgentPlugin))
+        .add_plugins((
+            DefaultPlugins.set(LogPlugin {
+                // See issue: https://github.com/bevyengine/bevy/issues/22733
+                filter: format!("{DEFAULT_FILTER},wgpu_hal::vulkan::instance=off"),
+                ..default()
+            }),
+            LlmAgentPlugin,
+        ))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, update_text)
         .run();
