@@ -10,7 +10,7 @@ fn setup(mut commands: Commands) {
     let client = Client::from_env().unwrap();
     let agent = client.agent(DEEPSEEK_V4_FLASH).build();
     let mut agent = Agent::new(agent);
-    agent.streaming_chat("Hello, world! Tell me a story.");
+    agent.streaming_chat("Hello!");
     commands.spawn(Camera2d);
     commands.spawn((Text::default(), agent));
 }
