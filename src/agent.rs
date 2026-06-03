@@ -1,10 +1,47 @@
 use bevy::{prelude::*, tasks::futures_lite::StreamExt};
 use rig::{
-    agent::MultiTurnStreamItem,
-    providers::deepseek::{CompletionModel, StreamingCompletionResponse},
+    agent::{MultiTurnStreamItem, NoToolConfig, WithBuilderTools},
+    client::{CompletionClient, ProviderClient},
+    providers::deepseek::{Client, CompletionModel, StreamingCompletionResponse},
     streaming::StreamingChat,
 };
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
+
+pub struct AgentBuilder<T = NoToolConfig>(rig::agent::AgentBuilder<CompletionModel, (), T>);
+
+impl AgentBuilder<NoToolConfig> {
+    pub fn new(model: &str) -> AgentBuilder<NoToolConfig> {
+        let client = Client::from_env().unwrap();
+        let agent_builder = client.agent(model).default_max_turns(usize::MAX - 1);
+        AgentBuilder(agent_builder)
+    }
+
+    pub fn tool(self, tool: impl rig::tool::Tool + 'static) -> AgentBuilder<WithBuilderTools> {
+        AgentBuilder(self.0.tool(tool))
+    }
+
+    pub fn build(self) -> Agent {
+        Agent {
+            agent: self.0.build(),
+            dialog: Vec::new(),
+            status: AgentStatus::Idle,
+        }
+    }
+}
+
+impl AgentBuilder<WithBuilderTools> {
+    pub fn tool(self, tool: impl rig::tool::Tool + 'static) -> AgentBuilder<WithBuilderTools> {
+        AgentBuilder(self.0.tool(tool))
+    }
+
+    pub fn build(self) -> Agent {
+        Agent {
+            agent: self.0.build(),
+            dialog: Vec::new(),
+            status: AgentStatus::Idle,
+        }
+    }
+}
 
 #[derive(Component)]
 pub struct Agent {
@@ -14,14 +51,6 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub fn new(agent: rig::agent::Agent<CompletionModel>) -> Self {
-        Agent {
-            agent,
-            dialog: Vec::new(),
-            status: AgentStatus::Idle,
-        }
-    }
-
     pub fn streaming_chat(
         &mut self,
         prompt: impl Into<rig::message::Message> + rig::wasm_compat::WasmCompatSend,

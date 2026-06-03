@@ -5,7 +5,6 @@ pub mod tool;
 pub use rig::agent::MultiTurnStreamItem as MultiTurnItem;
 pub use rig::message::Message;
 pub use rig::message::ToolResultContent;
-pub use rig::providers::deepseek::Client;
 pub use rig::streaming::StreamedAssistantContent as AssistantContent;
 pub use rig::streaming::StreamedUserContent as UserContent;
 

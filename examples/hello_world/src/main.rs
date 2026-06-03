@@ -3,13 +3,11 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AssistantContent, Client, LlmAgentPlugin, MultiTurnItem, agent::Agent, prelude::*,
+    AssistantContent, LlmAgentPlugin, MultiTurnItem, agent::AgentBuilder, prelude::*,
 };
 
 fn setup(mut commands: Commands) {
-    let client = Client::from_env().unwrap();
-    let agent = client.agent(DEEPSEEK_V4_FLASH).build();
-    let mut agent = Agent::new(agent);
+    let mut agent = AgentBuilder::new(DEEPSEEK_V4_FLASH).build();
     agent.streaming_chat("Hello!");
     commands.spawn(Camera2d);
     commands.spawn((Text::default(), agent));

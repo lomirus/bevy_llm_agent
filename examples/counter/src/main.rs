@@ -7,8 +7,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AssistantContent, Client, LlmAgentPlugin, MultiTurnItem, ToolResultContent, UserContent,
-    agent::Agent, prelude::*, tool::ToolAdapter,
+    AssistantContent, LlmAgentPlugin, MultiTurnItem, ToolResultContent, UserContent,
+    agent::AgentBuilder, prelude::*, tool::ToolAdapter,
 };
 use tools::{AddToCounter, GetCounter};
 
@@ -20,14 +20,10 @@ fn setup(
     add_to_counter: Res<ToolAdapter<AddToCounter>>,
     get_counter: Res<ToolAdapter<GetCounter>>,
 ) {
-    let client = Client::from_env().unwrap();
-    let agent = client
-        .agent(DEEPSEEK_V4_FLASH)
-        .default_max_turns(usize::MAX - 1)
+    let mut agent = AgentBuilder::new(DEEPSEEK_V4_FLASH)
         .tool(add_to_counter.clone())
         .tool(get_counter.clone())
         .build();
-    let mut agent = Agent::new(agent);
     agent.streaming_chat(
         "By calling add_to_counter, the final value obtained by get_counter is greater than 10.",
     );
