@@ -7,6 +7,8 @@ use rig::{
 };
 use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
+use crate::tool::{Tool, ToolAdapter};
+
 pub struct AgentBuilder<T = NoToolConfig>(rig::agent::AgentBuilder<CompletionModel, (), T>);
 
 impl AgentBuilder<NoToolConfig> {
@@ -16,8 +18,8 @@ impl AgentBuilder<NoToolConfig> {
         AgentBuilder(agent_builder)
     }
 
-    pub fn tool(self, tool: impl rig::tool::Tool + 'static) -> AgentBuilder<WithBuilderTools> {
-        AgentBuilder(self.0.tool(tool))
+    pub fn tool<T: Tool>(self) -> AgentBuilder<WithBuilderTools> {
+        AgentBuilder(self.0.tool(ToolAdapter::<T>::new()))
     }
 
     pub fn build(self) -> Agent {
@@ -30,8 +32,8 @@ impl AgentBuilder<NoToolConfig> {
 }
 
 impl AgentBuilder<WithBuilderTools> {
-    pub fn tool(self, tool: impl rig::tool::Tool + 'static) -> AgentBuilder<WithBuilderTools> {
-        AgentBuilder(self.0.tool(tool))
+    pub fn tool<T: Tool>(self) -> AgentBuilder<WithBuilderTools> {
+        AgentBuilder(self.0.tool(ToolAdapter::<T>::new()))
     }
 
     pub fn build(self) -> Agent {

@@ -3,10 +3,17 @@ pub use rig::tool::Tool as RigTool;
 pub use rig::tool::ToolError;
 pub use schemars::JsonSchema;
 
-use bevy::{ecs::system::BoxedSystem, prelude::*};
+use bevy::{ecs::system::BoxedSystem, platform::collections::HashMap, prelude::*};
 use serde::{Serialize, de::DeserializeOwned};
-use std::{any::type_name, fmt::Debug, sync::Mutex};
+use std::{
+    any::{Any, TypeId, type_name},
+    fmt::Debug,
+    sync::{LazyLock, Mutex},
+};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+
+pub(crate) static TOOL_CALL_SENDERS: LazyLock<Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
 
 pub trait AppExt {
     fn register_llm_tool<T: Tool>(&mut self) -> &mut Self;
@@ -19,8 +26,12 @@ impl AppExt for App {
 
         let (sender, receiver) = unbounded_channel();
 
+        TOOL_CALL_SENDERS
+            .lock()
+            .unwrap()
+            .insert(TypeId::of::<T>(), Box::new(sender));
+
         self.add_message::<ToolRequest<T>>()
-            .insert_resource(ToolAdapter::<T> { sender })
             .insert_resource(ToolRequestInbox::<T> { receiver })
             .add_systems(FixedUpdate, T::boxed_system())
             .add_systems(FixedUpdate, poll_tool_requests::<T>)
@@ -57,16 +68,20 @@ pub trait Tool: 'static + Sync + Send {
     fn boxed_system() -> BoxedSystem;
 }
 
-#[derive(Resource)]
-pub struct ToolAdapter<T: Tool> {
+pub(crate) struct ToolAdapter<T: Tool> {
     sender: UnboundedSender<ToolRequest<T>>,
 }
 
-impl<T: Tool> Clone for ToolAdapter<T> {
-    fn clone(&self) -> Self {
-        Self {
-            sender: self.sender.clone(),
-        }
+impl<T: Tool> ToolAdapter<T> {
+    pub(crate) fn new() -> Self {
+        let tool_call_senders = TOOL_CALL_SENDERS.lock().unwrap();
+        let sender = tool_call_senders.get(&TypeId::of::<T>()).unwrap();
+        let sender = sender
+            .downcast_ref::<UnboundedSender<ToolRequest<T>>>()
+            .unwrap()
+            .clone();
+
+        Self { sender }
     }
 }
 
