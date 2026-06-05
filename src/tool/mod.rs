@@ -1,7 +1,11 @@
+mod tool_adapter;
+
 pub use rig::completion::ToolDefinition;
 pub use rig::tool::Tool as RigTool;
 pub use rig::tool::ToolError;
 pub use schemars::JsonSchema;
+
+pub(crate) use tool_adapter::ToolAdapter;
 
 use bevy::{ecs::system::BoxedSystem, platform::collections::HashMap, prelude::*};
 use serde::{Serialize, de::DeserializeOwned};
@@ -10,7 +14,7 @@ use std::{
     fmt::Debug,
     sync::{LazyLock, Mutex},
 };
-use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
+use tokio::sync::mpsc::{UnboundedReceiver, unbounded_channel};
 
 pub(crate) static TOOL_CALL_SENDERS: LazyLock<Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -66,50 +70,6 @@ pub trait Tool: 'static + Sync + Send {
     }
 
     fn boxed_system() -> BoxedSystem;
-}
-
-pub(crate) struct ToolAdapter<T: Tool> {
-    sender: UnboundedSender<ToolRequest<T>>,
-}
-
-impl<T: Tool> ToolAdapter<T> {
-    pub(crate) fn new() -> Self {
-        let tool_call_senders = TOOL_CALL_SENDERS.lock().unwrap();
-        let sender = tool_call_senders.get(&TypeId::of::<T>()).unwrap();
-        let sender = sender
-            .downcast_ref::<UnboundedSender<ToolRequest<T>>>()
-            .unwrap()
-            .clone();
-
-        Self { sender }
-    }
-}
-
-impl<T: Tool> rig::tool::Tool for ToolAdapter<T> {
-    const NAME: &str = T::NAME;
-
-    type Error = ToolError;
-    type Args = T::Args;
-    type Output = T::Output;
-
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        T::definition()
-    }
-
-    async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {
-        let (output_sender, output_receiver) = tokio::sync::oneshot::channel();
-
-        self.sender
-            .send(ToolRequest {
-                args,
-                output_sender: Mutex::new(Some(output_sender)),
-            })
-            .unwrap();
-
-        let output = output_receiver.await.unwrap();
-
-        Ok(output)
-    }
 }
 
 #[derive(Message, Deref)]
