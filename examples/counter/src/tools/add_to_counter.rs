@@ -4,9 +4,10 @@ use serde::Deserialize;
 
 use crate::Counter;
 
+/// Add an unsigned integer value to counter.
+#[derive(JsonSchema)]
 pub(crate) struct AddToCounter;
 
-/// Add an unsigned integer value to counter.
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct AddToCounterArgs {
     /// The unsigned integer value added to counter.

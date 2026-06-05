@@ -4,9 +4,10 @@ use serde::Deserialize;
 
 use crate::Counter;
 
+/// Get the current value of counter.
+#[derive(JsonSchema)]
 pub(crate) struct GetCounter;
 
-/// Get the current value of counter.
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct GetCounterArgs {}
 

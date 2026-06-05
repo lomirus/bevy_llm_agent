@@ -20,7 +20,7 @@ use std::{
 pub(crate) static TOOL_CALL_SENDERS: LazyLock<Mutex<HashMap<TypeId, Box<dyn Any + Send + Sync>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-pub trait Tool: 'static + Sync + Send {
+pub trait Tool: 'static + Sync + Send + JsonSchema {
     const NAME: &'static str;
 
     type Args: Send + Sync + 'static + DeserializeOwned + JsonSchema;
@@ -28,14 +28,14 @@ pub trait Tool: 'static + Sync + Send {
 
     fn definition() -> ToolDefinition {
         let parameters = serde_json::json!(schemars::schema_for!(Self::Args));
-        let description = parameters
+        let description = serde_json::json!(schemars::schema_for!(Self))
             .get("description")
             .and_then(serde_json::Value::as_str)
             .unwrap_or_else(|| {
                 panic!(
-                    "tool `{}` args type `{}` is missing a schema description; add a doc comment to the args struct",
+                    "tool `{}` type {} is missing a schema description; add a doc comment to the struct",
                     Self::NAME,
-                    type_name::<Self::Args>()
+                    type_name::<Self>()
                 )
             })
             .to_string();
