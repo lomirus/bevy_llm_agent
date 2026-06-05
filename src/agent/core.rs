@@ -2,7 +2,7 @@ use bevy::{prelude::*, tasks::futures_lite::StreamExt};
 use rig::{providers::deepseek::CompletionModel, streaming::StreamingChat};
 use tokio::sync::mpsc::unbounded_channel;
 
-use crate::agent::agent_status::AgentStatus;
+use super::AgentStatus;
 
 #[derive(Component)]
 pub struct Agent {

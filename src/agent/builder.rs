@@ -5,10 +5,8 @@ use rig::{
     providers::deepseek::{Client, CompletionModel},
 };
 
-use crate::{
-    agent::{agent::Agent, agent_status::AgentStatus},
-    tool::{Tool, ToolAdapter},
-};
+use crate::tool::{Tool, ToolAdapter};
+use super::{Agent, AgentStatus};
 
 pub struct AgentBuilder<T = NoToolConfig>(rig::agent::AgentBuilder<CompletionModel, (), T>);
 

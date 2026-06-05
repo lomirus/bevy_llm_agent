@@ -1,7 +1,7 @@
-mod agent;
-mod agent_builder;
-mod agent_status;
+mod core;
+mod builder;
+mod status;
 
-pub use agent::Agent;
-pub use agent_builder::AgentBuilder;
-pub(crate) use agent_status::AgentStatus;
+pub use core::Agent;
+pub use builder::AgentBuilder;
+pub(crate) use status::AgentStatus;
