@@ -52,7 +52,7 @@ fn print_text(
                     ToolResultContent::Text(text) => text.text,
                     ToolResultContent::Image(_) => "<image>".to_string(),
                 };
-                info!("[TOOL RESULT] {:?}", text);
+                info!("[TOOL RESULT] {}", text);
             }
             MultiTurnItem::FinalResponse(..) => {
                 app_exit.write(if counter.0 > 10 {
