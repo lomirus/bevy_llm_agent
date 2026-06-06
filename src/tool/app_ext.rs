@@ -12,8 +12,7 @@ pub trait AppExt {
 
 impl AppExt for App {
     fn register_llm_tool<T: Tool>(&mut self) -> &mut Self {
-        // Validate the generated schema on the main thread during app setup.
-        T::definition();
+        T::init_check();
 
         let (sender, receiver) = unbounded_channel();
 

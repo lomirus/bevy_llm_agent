@@ -26,18 +26,32 @@ pub trait Tool: 'static + Sync + Send + JsonSchema {
     type Args: Send + Sync + 'static + DeserializeOwned + JsonSchema;
     type Output: Send + Serialize + Debug;
 
+    fn init_check() {
+        if let None = serde_json::json!(schemars::schema_for!(Self)).get("description") {
+            panic!(
+                "tool `{}` type {} is missing a schema description; add a doc comment to the struct",
+                Self::NAME,
+                type_name::<Self>()
+            );
+        }
+
+        if let serde_json::Value::String(json_type) =
+            schemars::schema_for!(Self::Args).get("type").unwrap()
+            && json_type == "null"
+        {
+            panic!(
+                "tool `{}` args type `{}` is not a valid schema",
+                Self::NAME,
+                type_name::<Self::Args>()
+            );
+        }
+    }
+
     fn definition() -> ToolDefinition {
         let parameters = serde_json::json!(schemars::schema_for!(Self::Args));
         let description = serde_json::json!(schemars::schema_for!(Self))
             .get("description")
-            .and_then(serde_json::Value::as_str)
-            .unwrap_or_else(|| {
-                panic!(
-                    "tool `{}` type {} is missing a schema description; add a doc comment to the struct",
-                    Self::NAME,
-                    type_name::<Self>()
-                )
-            })
+            .unwrap()
             .to_string();
 
         ToolDefinition {
