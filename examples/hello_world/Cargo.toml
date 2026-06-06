@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { workspace = true, features = ["ui"]}
+bevy = { workspace = true, features = ["ui", "system_font_discovery"]}
 bevy-llm-agent = { path = "../../" }
