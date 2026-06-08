@@ -5,8 +5,8 @@ use rig::{
     providers::deepseek::{Client, CompletionModel},
 };
 
+use super::{Agent, AgentStatus, Thinking};
 use crate::tool::{Tool, ToolAdapter};
-use super::{Agent, AgentStatus};
 
 pub struct AgentBuilder<T = NoToolConfig>(rig::agent::AgentBuilder<CompletionModel, (), T>);
 
@@ -15,6 +15,23 @@ impl AgentBuilder<NoToolConfig> {
         let client = Client::from_env().unwrap();
         let agent_builder = client.agent(model).default_max_turns(usize::MAX - 1);
         AgentBuilder(agent_builder)
+    }
+
+    pub fn thinking(self, mode: Thinking) -> Self {
+        let thinking_param = match mode {
+            Thinking::Off => serde_json::json!({
+                "thinking": { "type": "disabled" }
+            }),
+            Thinking::High => serde_json::json!({
+                "thinking": { "type": "enabled" },
+                "reasoning_effort": "high"
+            }),
+            Thinking::Max => serde_json::json!({
+                "thinking": { "type": "enabled" },
+                "reasoning_effort": "max"
+            }),
+        };
+        AgentBuilder(self.0.additional_params(thinking_param))
     }
 
     pub fn tool<T: Tool>(self) -> AgentBuilder<WithBuilderTools> {
