@@ -28,11 +28,15 @@ fn update_text(
 }
 
 fn main() {
+    // See issue: https://github.com/bevyengine/bevy/issues/22733
+    const FILTER_WGPU_HAL: &str = "wgpu_hal::vulkan::instance=off";
+    // See issue: https://github.com/bevyengine/bevy/issues/24094
+    const FILTER_ICU_PROVIDER: &str = "icu_provider::error=off";
+
     App::new()
         .add_plugins((
             DefaultPlugins.set(LogPlugin {
-                // See issue: https://github.com/bevyengine/bevy/issues/22733
-                filter: format!("{DEFAULT_FILTER},wgpu_hal::vulkan::instance=off"),
+                filter: format!("{DEFAULT_FILTER},{FILTER_WGPU_HAL},{FILTER_ICU_PROVIDER}"),
                 ..default()
             }),
             LlmAgentPlugin,

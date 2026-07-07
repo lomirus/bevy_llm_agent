@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 bevy = { workspace = true, features = ["ui", "system_font_discovery"]}
 bevy-llm-agent = { path = "../../" }
+icu_provider = { version = "2.2.0", features = ["logging"] }
