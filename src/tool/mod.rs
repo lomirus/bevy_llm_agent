@@ -29,7 +29,7 @@ pub trait Tool: 'static + Sync + Send + JsonSchema {
     fn init_check() {
         if let None = serde_json::json!(schemars::schema_for!(Self)).get("description") {
             panic!(
-                "tool `{}` type {} is missing a schema description; add a doc comment to the struct",
+                "Tool `{}` type {} is missing a schema description; add a doc comment to the struct",
                 Self::NAME,
                 type_name::<Self>()
             );
@@ -40,7 +40,7 @@ pub trait Tool: 'static + Sync + Send + JsonSchema {
             && json_type == "null"
         {
             panic!(
-                "tool `{}` args type `{}` is not a valid schema",
+                "Tool `{}` args type `{}` is not a valid schema",
                 Self::NAME,
                 type_name::<Self::Args>()
             );
