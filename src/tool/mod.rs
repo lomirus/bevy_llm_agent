@@ -5,7 +5,7 @@ pub use app_ext::AppExt;
 pub use rig::completion::ToolDefinition;
 pub use rig::tool::Tool as RigTool;
 pub use rig::tool::ToolError;
-pub use schemars::JsonSchema;
+use schemars::JsonSchema;
 
 pub(crate) use tool_adapter::ToolAdapter;
 

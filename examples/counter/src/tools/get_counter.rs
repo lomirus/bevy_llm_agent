@@ -1,6 +1,7 @@
 use bevy::{ecs::system::BoxedSystem, prelude::*};
-use bevy_llm_agent::tool::{JsonSchema, Tool, ToolRequest};
+use bevy_llm_agent::tool::{Tool, ToolRequest};
 use serde::Deserialize;
+use schemars::JsonSchema;
 
 use crate::Counter;
 
