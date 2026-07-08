@@ -17,6 +17,7 @@ impl AgentBuilder<NoToolConfig> {
         AgentBuilder(agent_builder)
     }
 
+    /// Set the thinking effort
     pub fn thinking(self, mode: Thinking) -> Self {
         let thinking_param = match mode {
             Thinking::Off => serde_json::json!({
@@ -34,6 +35,12 @@ impl AgentBuilder<NoToolConfig> {
         AgentBuilder(self.0.additional_params(thinking_param))
     }
 
+    /// Set the system prompt
+    pub fn preamble(self, preamble: &str) -> Self {
+        AgentBuilder(self.0.preamble(preamble))
+    }
+
+    /// Add the tool
     pub fn tool<T: Tool>(self) -> AgentBuilder<WithBuilderTools> {
         AgentBuilder(self.0.tool(ToolAdapter::<T>::new()))
     }
