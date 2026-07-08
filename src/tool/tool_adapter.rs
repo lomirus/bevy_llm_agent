@@ -12,7 +12,10 @@ pub(crate) struct ToolAdapter<T: Tool> {
 impl<T: Tool> ToolAdapter<T> {
     pub(crate) fn new() -> Self {
         let tool_call_senders = TOOL_CALL_SENDERS.lock().unwrap();
-        let sender = tool_call_senders.get(&TypeId::of::<T>()).unwrap();
+        let Some(sender) = tool_call_senders.get(&TypeId::of::<T>()) else {
+            let type_name = std::any::type_name::<T>();
+            panic!("Tool `{type_name}` was not registered with the Bevy app.")
+        };
         let sender = sender
             .downcast_ref::<UnboundedSender<ToolRequest<T>>>()
             .unwrap()
