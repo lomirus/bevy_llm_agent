@@ -3,25 +3,23 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AssistantContent, LlmAgentPlugin, MultiTurnItem, agent::AgentBuilder, prelude::*,
+    AgentMessage, AssistantContent, LlmAgentPlugin, MultiTurnItem, UserMessage,
+    agent::AgentBuilder, prelude::*,
 };
 
-fn setup(mut commands: Commands) {
-    let mut agent = AgentBuilder::new(DEEPSEEK_V4_FLASH).build();
-    agent.streaming_chat("Hello!");
+fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
+    let agent = AgentBuilder::new(DEEPSEEK_V4_FLASH).build();
     commands.spawn(Camera2d);
-    commands.spawn((Text::default(), agent, TextFont::from(FontSource::SystemUi)));
+    let entity = commands
+        .spawn((Text::default(), agent, TextFont::from(FontSource::SystemUi)))
+        .id();
+    sender.write(UserMessage::new(entity, "Hello!"));
 }
 
-fn update_text(
-    mut texts: Query<&mut Text>,
-    mut stream_messages: MessageReader<bevy_llm_agent::AgentMessage>,
-) {
-    for stream_message in stream_messages.read() {
-        let mut text = texts.get_mut(stream_message.entity).unwrap();
-        if let MultiTurnItem::StreamAssistantItem(AssistantContent::Text(delta)) =
-            &stream_message.delta
-        {
+fn update_text(mut texts: Query<&mut Text>, mut agent_messages: MessageReader<AgentMessage>) {
+    for AgentMessage { entity, delta } in agent_messages.read() {
+        let mut text = texts.get_mut(*entity).unwrap();
+        if let MultiTurnItem::StreamAssistantItem(AssistantContent::Text(delta)) = delta {
             text.push_str(delta.text())
         }
     }

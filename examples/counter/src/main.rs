@@ -7,7 +7,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AssistantContent, LlmAgentPlugin, MultiTurnItem, ToolResultContent, UserContent,
+    AssistantContent, LlmAgentPlugin, MultiTurnItem, ToolResultContent, UserContent, UserMessage,
     agent::AgentBuilder, prelude::*,
 };
 use tools::{AddToCounter, GetCounter};
@@ -15,15 +15,16 @@ use tools::{AddToCounter, GetCounter};
 #[derive(Resource)]
 struct Counter(usize);
 
-fn setup(mut commands: Commands) {
-    let mut agent = AgentBuilder::new(DEEPSEEK_V4_FLASH)
+fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
+    let agent = AgentBuilder::new(DEEPSEEK_V4_FLASH)
         .tool::<AddToCounter>()
         .tool::<GetCounter>()
         .build();
-    agent.streaming_chat(
+    let entity = commands.spawn(agent).id();
+    sender.write(UserMessage::new(
+        entity,
         "By calling add_to_counter, the final value obtained by get_counter is greater than 10.",
-    );
-    commands.spawn(agent);
+    ));
 }
 
 fn print_text(
