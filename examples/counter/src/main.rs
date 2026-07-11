@@ -27,12 +27,12 @@ fn setup(mut commands: Commands) {
 }
 
 fn print_text(
-    mut stream_messages: MessageReader<bevy_llm_agent::StreamMessage>,
+    mut agent_messages: MessageReader<bevy_llm_agent::AgentMessage>,
     mut app_exit: MessageWriter<AppExit>,
     counter: Res<Counter>,
 ) {
-    for stream_message in stream_messages.read() {
-        match &stream_message.delta {
+    for agent_message in agent_messages.read() {
+        match &agent_message.delta {
             MultiTurnItem::StreamAssistantItem(message) => match message {
                 AssistantContent::Text(text) => {
                     print!("{text}");

@@ -15,7 +15,7 @@ fn setup(mut commands: Commands) {
 
 fn update_text(
     mut texts: Query<&mut Text>,
-    mut stream_messages: MessageReader<bevy_llm_agent::StreamMessage>,
+    mut stream_messages: MessageReader<bevy_llm_agent::AgentMessage>,
 ) {
     for stream_message in stream_messages.read() {
         let mut text = texts.get_mut(stream_message.entity).unwrap();
