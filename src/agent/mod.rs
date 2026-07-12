@@ -1,9 +1,9 @@
 mod core;
-mod builder;
+mod message;
 mod status;
 mod thinking;
 
 pub use core::Agent;
-pub use builder::AgentBuilder;
-pub use thinking::Thinking;
+pub use message::{DialogMessage, ToolCall};
 pub(crate) use status::AgentStatus;
+pub use thinking::Thinking;

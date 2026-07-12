@@ -3,12 +3,12 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AgentMessage, AssistantContent, LlmAgentPlugin, MultiTurnItem, UserMessage,
-    agent::AgentBuilder, prelude::*,
+    AgentMessage, AgentMessageDelta, DEEPSEEK_V4_FLASH, LlmAgentPlugin, UserMessage,
+    agent::{Agent, Thinking},
 };
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let agent = AgentBuilder::new(DEEPSEEK_V4_FLASH).build();
+    let agent = Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off);
     commands.spawn(Camera2d);
     let entity = commands
         .spawn((Text::default(), agent, TextFont::from(FontSource::SystemUi)))
@@ -19,8 +19,8 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
 fn update_text(mut texts: Query<&mut Text>, mut agent_messages: MessageReader<AgentMessage>) {
     for AgentMessage { entity, delta } in agent_messages.read() {
         let mut text = texts.get_mut(*entity).unwrap();
-        if let MultiTurnItem::StreamAssistantItem(AssistantContent::Text(delta)) = delta {
-            text.push_str(delta.text())
+        if let AgentMessageDelta::Content(content) = delta {
+            text.push_str(content)
         }
     }
 }

@@ -7,20 +7,31 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AssistantContent, LlmAgentPlugin, MultiTurnItem, ToolResultContent, UserContent, UserMessage,
-    agent::AgentBuilder, prelude::*,
+    AgentMessageDelta, DEEPSEEK_V4_FLASH, LlmAgentPlugin, UserMessage,
+    agent::{Agent, Thinking},
+    tool::{AgentTools, Tool, ToolInvocation},
 };
 use tools::{AddToCounter, GetCounter};
+
+use crate::tools::{add_to_counter, get_counter};
 
 #[derive(Resource)]
 struct Counter(usize);
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let agent = AgentBuilder::new(DEEPSEEK_V4_FLASH)
-        .tool::<AddToCounter>()
-        .tool::<GetCounter>()
-        .build();
-    let entity = commands.spawn(agent).id();
+    // TODO: Simplify this.
+    let get_counter_tool = Tool::from::<GetCounter>();
+    let add_to_counter_tool = Tool::from::<AddToCounter>();
+    let entity = commands
+        .spawn_scene(bsn! {
+            Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off)
+            AgentTools [
+                template_value(get_counter_tool),
+                template_value(add_to_counter_tool)
+            ]
+        })
+        .id();
+
     sender.write(UserMessage::new(
         entity,
         "By calling add_to_counter, the final value obtained by get_counter is greater than 10.",
@@ -33,29 +44,22 @@ fn print_text(
     counter: Res<Counter>,
 ) {
     for agent_message in agent_messages.read() {
+        use AgentMessageDelta::*;
         match &agent_message.delta {
-            MultiTurnItem::StreamAssistantItem(message) => match message {
-                AssistantContent::Text(text) => {
-                    print!("{text}");
-                    std::io::stdout().flush().unwrap();
-                }
-                AssistantContent::ToolCall { tool_call, .. } => {
-                    println!();
-                    info!(
-                        "[TOOL CALL] {}({})",
-                        tool_call.function.name, tool_call.function.arguments
-                    );
-                }
-                _ => {}
-            },
-            MultiTurnItem::StreamUserItem(UserContent::ToolResult { tool_result, .. }) => {
-                let text = match tool_result.content.first() {
-                    ToolResultContent::Text(text) => text.text,
-                    ToolResultContent::Image(_) => "<image>".to_string(),
-                };
-                info!("[TOOL RESULT] {}", text);
+            Content(text) => {
+                print!("{text}");
+                std::io::stdout().flush().unwrap();
             }
-            MultiTurnItem::FinalResponse(..) => {
+            ToolCall {
+                name, arguments, ..
+            } => {
+                println!();
+                info!("[TOOL CALL] {}({})", name, arguments);
+            }
+            ToolResult { content, .. } => {
+                info!("[TOOL RESULT] {}", content);
+            }
+            Finish => {
                 app_exit.write(if counter.0 > 10 {
                     AppExit::Success
                 } else {
@@ -77,9 +81,9 @@ fn main() {
             }),
             LlmAgentPlugin,
         ))
-        .register_llm_tool::<AddToCounter>()
-        .register_llm_tool::<GetCounter>()
+        .add_message::<ToolInvocation<GetCounter, usize>>()
+        .add_message::<ToolInvocation<AddToCounter, ()>>()
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, print_text)
+        .add_systems(FixedUpdate, (print_text, get_counter, add_to_counter))
         .run();
 }
