@@ -4815,6 +4815,10 @@ name = "futures-timer"
 version = "3.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "af43fadb8a98512d547e37b4e92e0ced13e205c061b87b4623eff01d918d6968"
+dependencies = [
+ "gloo-timers",
+ "send_wrapper",
+]
 
 [[package]]
 name = "futures-util"
@@ -4982,6 +4986,18 @@ name = "glob"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
+
+[[package]]
+name = "gloo-timers"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "482ce8a491a501da4cd806bd190275363d674f2845005c6ddbd5d3e1dd54495d"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "js-sys",
+ "wasm-bindgen",
+]
 
 [[package]]
 name = "glow"
@@ -7098,7 +7114,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ffa00dec017b5b1a8b7cf5e2c008bfda1aa7e0697ac1508b491fdf2622fb4d8"
 dependencies = [
- "rand 0.8.6",
+ "rand 0.8.7",
 ]
 
 [[package]]
@@ -8336,9 +8352,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.8.6"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
+checksum = "22f6172bdec972074665ed81ed53b71da00bfc44b65a753cfde883ec4c702a1a"
 dependencies = [
  "libc",
  "rand_chacha 0.3.1",
@@ -8816,9 +8832,9 @@ checksum = "47b34b781b31e5d73e9fbc8689c70551fd1ade9a19e3e28cfec8580a79290cc4"
 
 [[package]]
 name = "rig"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95947817936a8a51866a8b7d1599b721cd7d1567dd49257dfaf55e13d59110bf"
+checksum = "e98e2e8f01c4c5bc23f577983634fa4d5244ffb070ea14c23b1ea5bd406e5cac"
 dependencies = [
  "rig-bedrock",
  "rig-core",
@@ -8830,9 +8846,9 @@ dependencies = [
 
 [[package]]
 name = "rig-bedrock"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f141e9d7d9f6fca678745c9dd2d8f11b9f546f744f46d78c9036134d0b87f64"
+checksum = "ebf23704f3bd6536965423f7ecff05c06c7ed03671da04f38090f026a5fef24e"
 dependencies = [
  "async-stream",
  "aws-config",
@@ -8852,9 +8868,9 @@ dependencies = [
 
 [[package]]
 name = "rig-core"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "557f11c26c2c2ea61d9cb843ce5adff138cc5785f58ff4b87d779de8acaa32ae"
+checksum = "80a4bc7a93b329c4e1a66d5fd211d79990e7331e3c701f057c29f135f548686d"
 dependencies = [
  "as-any",
  "async-stream",
@@ -8866,6 +8882,7 @@ dependencies = [
  "futures-timer",
  "glob",
  "http 1.4.1",
+ "indexmap 2.14.0",
  "mime",
  "mime_guess",
  "nanoid",
@@ -8886,9 +8903,9 @@ dependencies = [
 
 [[package]]
 name = "rig-derive"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "643eb495acbd4bd5976164cd068f186d534f741def8d5d052f860266b98d07f8"
+checksum = "5531bfa887b371eab658a92de7db35003370bbeee208ff5e68bbb81a5ae92d3d"
 dependencies = [
  "convert_case 0.11.0",
  "deluxe",
@@ -8902,9 +8919,9 @@ dependencies = [
 
 [[package]]
 name = "rig-fastembed"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5645a5801090c148d1649817e72c93e7c54a6c8ebd5cbe7b7467fd83236be4d1"
+checksum = "7e0993c1c10febe1aa38e09b2b6d1d267cbfe8a9f8499e6baf48100bcd037f33"
 dependencies = [
  "fastembed",
  "rig-core",
@@ -8916,9 +8933,9 @@ dependencies = [
 
 [[package]]
 name = "rig-helixdb"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "152425ed09a2f43f463d3677ec3abd0b3ccc186d7b2345744442ad3db089a98a"
+checksum = "2465ab43e283d4c6b81ccd2fa7b6e0e944cc752176ebc0dc5509834c6865a10f"
 dependencies = [
  "reqwest 0.13.4",
  "rig-core",
@@ -8929,9 +8946,9 @@ dependencies = [
 
 [[package]]
 name = "rig-lancedb"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4b0034a99a055f4ff6a5624b35da47ce5795f2b54d831ac51ce4d85b06ef890"
+checksum = "f4cd78c07a6e96bb00caa7446b7747cb04bdc0104e48d3efe9184a68ee9e3ec4"
 dependencies = [
  "arrow-array",
  "deranged",
@@ -8944,9 +8961,9 @@ dependencies = [
 
 [[package]]
 name = "rig-milvus"
-version = "0.38.2"
+version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "89e871bfdbb79a27c860f8beb5b6607e218602d74e9bd1c7e8a6908fdd656e53"
+checksum = "691b7ab8bf3ef1556c52a025f8a95650873b94cbcf3832277a5b8cdbb98727b4"
 dependencies = [
  "reqwest 0.13.4",
  "rig-core",
