@@ -8,7 +8,7 @@ use rig::{
 use super::{Agent, AgentStatus, Thinking};
 use crate::tool::{Tool, ToolAdapter};
 
-pub struct AgentBuilder<T = NoToolConfig>(rig::agent::AgentBuilder<CompletionModel, (), T>);
+pub struct AgentBuilder<T = NoToolConfig>(rig::agent::AgentBuilder<CompletionModel, T>);
 
 impl AgentBuilder<NoToolConfig> {
     pub fn new(model: &str) -> AgentBuilder<NoToolConfig> {

@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use rig::{completion::ToolDefinition, tool::ToolError};
+use rig::tool::ToolError;
 use std::{any::TypeId, sync::Mutex};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -32,8 +32,12 @@ impl<T: Tool> rig::tool::Tool for ToolAdapter<T> {
     type Args = T::Args;
     type Output = T::Output;
 
-    async fn definition(&self, _prompt: String) -> ToolDefinition {
-        T::definition()
+    fn description(&self) -> String {
+        T::description()
+    }
+
+    fn parameters(&self) -> serde_json::Value {
+        T::parameters()
     }
 
     async fn call(&self, args: Self::Args) -> Result<Self::Output, Self::Error> {

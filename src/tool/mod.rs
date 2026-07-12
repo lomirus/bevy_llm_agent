@@ -47,18 +47,15 @@ pub trait Tool: 'static + Sync + Send + JsonSchema {
         }
     }
 
-    fn definition() -> ToolDefinition {
-        let parameters = serde_json::json!(schemars::schema_for!(Self::Args));
-        let description = serde_json::json!(schemars::schema_for!(Self))
+    fn description() -> String {
+        serde_json::json!(schemars::schema_for!(Self))
             .get("description")
             .unwrap()
-            .to_string();
-
-        ToolDefinition {
-            name: Self::NAME.to_string(),
-            description,
-            parameters,
-        }
+            .to_string()
+    }
+    
+    fn parameters() -> serde_json::Value {
+        serde_json::json!(schemars::schema_for!(Self::Args))
     }
 
     fn boxed_system() -> BoxedSystem;
