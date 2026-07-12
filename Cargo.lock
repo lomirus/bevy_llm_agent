@@ -8816,9 +8816,9 @@ checksum = "47b34b781b31e5d73e9fbc8689c70551fd1ade9a19e3e28cfec8580a79290cc4"
 
 [[package]]
 name = "rig"
-version = "0.37.1"
+version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e84d8f295832a953bf958f6b6ebfc8c0fea3f38f63fb17e662acb062ec88dc2"
+checksum = "95947817936a8a51866a8b7d1599b721cd7d1567dd49257dfaf55e13d59110bf"
 dependencies = [
  "rig-bedrock",
  "rig-core",
@@ -8830,9 +8830,9 @@ dependencies = [
 
 [[package]]
 name = "rig-bedrock"
-version = "0.4.7"
+version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84b2e779adc98c00be590d1fcc928962a465ce60772f84f2f778cb461c2a8ef9"
+checksum = "2f141e9d7d9f6fca678745c9dd2d8f11b9f546f744f46d78c9036134d0b87f64"
 dependencies = [
  "async-stream",
  "aws-config",
@@ -8841,7 +8841,7 @@ dependencies = [
  "base64 0.22.1",
  "nanoid",
  "rig-core",
- "rig-derive 0.1.15",
+ "rig-derive",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -8872,7 +8872,7 @@ dependencies = [
  "ordered-float",
  "pin-project-lite",
  "reqwest 0.13.4",
- "rig-derive 0.38.2",
+ "rig-derive",
  "schemars 1.2.1",
  "serde",
  "serde_json",
@@ -8882,22 +8882,6 @@ dependencies = [
  "tracing",
  "tracing-futures",
  "url",
-]
-
-[[package]]
-name = "rig-derive"
-version = "0.1.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa8cfe9976743132bf13d44d3b7b1aade835c54f49c94baf895e8ec018f90553"
-dependencies = [
- "convert_case 0.10.0",
- "deluxe",
- "indoc",
- "proc-macro-crate 3.5.0",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn 2.0.117",
 ]
 
 [[package]]
@@ -8918,9 +8902,9 @@ dependencies = [
 
 [[package]]
 name = "rig-fastembed"
-version = "0.4.2"
+version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b127de4261136eda27f9804b22c60f378d5760b05520b852757d4b0d6c89d0a2"
+checksum = "5645a5801090c148d1649817e72c93e7c54a6c8ebd5cbe7b7467fd83236be4d1"
 dependencies = [
  "fastembed",
  "rig-core",
@@ -8932,9 +8916,9 @@ dependencies = [
 
 [[package]]
 name = "rig-helixdb"
-version = "0.2.7"
+version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5ca8f720603a18dbf29f8d1708014276235d59719e81d093fbf8f50fcbb4967"
+checksum = "152425ed09a2f43f463d3677ec3abd0b3ccc186d7b2345744442ad3db089a98a"
 dependencies = [
  "reqwest 0.13.4",
  "rig-core",
@@ -8945,9 +8929,9 @@ dependencies = [
 
 [[package]]
 name = "rig-lancedb"
-version = "0.4.7"
+version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f238a3579b2918fd0cba735076443c6001ab871e0e20279e2877b9f6fd7fde88"
+checksum = "f4b0034a99a055f4ff6a5624b35da47ce5795f2b54d831ac51ce4d85b06ef890"
 dependencies = [
  "arrow-array",
  "deranged",
@@ -8960,9 +8944,9 @@ dependencies = [
 
 [[package]]
 name = "rig-milvus"
-version = "0.2.7"
+version = "0.38.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b7a8ef866790092c05fef0a4a65de87c30199503efe1e63cbddca2dc422e28b"
+checksum = "89e871bfdbb79a27c860f8beb5b6607e218602d74e9bd1c7e8a6908fdd656e53"
 dependencies = [
  "reqwest 0.13.4",
  "rig-core",
