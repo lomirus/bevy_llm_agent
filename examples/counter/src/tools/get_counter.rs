@@ -1,19 +1,27 @@
 use bevy::prelude::*;
-use bevy_llm_agent::tool::ToolInvocation;
+use bevy_llm_agent::tool::{ToolTrait, ToolInvocation};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::Counter;
 
 /// Get the current value of counter.
+#[derive(JsonSchema)]
+pub(crate) struct GetCounter;
+
 #[derive(Deserialize, JsonSchema)]
-pub(crate) struct GetCounter {}
+pub(crate) struct Args {}
+
+impl ToolTrait for GetCounter {
+    type Args = Args;
+    type Output = usize;
+}
 
 pub(crate) fn get_counter(
-    mut requests: MessageReader<ToolInvocation<GetCounter, usize>>,
+    mut calls: MessageReader<ToolInvocation<GetCounter>>,
     counter: Res<Counter>,
 ) {
-    for request in requests.read() {
-        request.send_back(counter.0);
+    for call in calls.read() {
+        call.respond(counter.0);
     }
 }

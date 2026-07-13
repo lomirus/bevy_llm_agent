@@ -19,9 +19,8 @@ use crate::tools::{add_to_counter, get_counter};
 struct Counter(usize);
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    // TODO: Simplify this.
-    let get_counter_tool = Tool::from::<GetCounter>();
-    let add_to_counter_tool = Tool::from::<AddToCounter>();
+    let get_counter_tool = Tool::of::<GetCounter>();
+    let add_to_counter_tool = Tool::of::<AddToCounter>();
     let entity = commands
         .spawn_scene(bsn! {
             Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off)
@@ -59,7 +58,7 @@ fn print_text(
             ToolResult { content, .. } => {
                 info!("[TOOL RESULT] {}", content);
             }
-            Finish => {
+            Finish(_) => {
                 app_exit.write(if counter.0 > 10 {
                     AppExit::Success
                 } else {
@@ -81,8 +80,8 @@ fn main() {
             }),
             LlmAgentPlugin,
         ))
-        .add_message::<ToolInvocation<GetCounter, usize>>()
-        .add_message::<ToolInvocation<AddToCounter, ()>>()
+        .add_message::<ToolInvocation<GetCounter>>()
+        .add_message::<ToolInvocation<AddToCounter>>()
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, (print_text, get_counter, add_to_counter))
         .run();

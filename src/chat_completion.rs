@@ -83,13 +83,13 @@ pub(crate) struct ResponseFormat {
     pub(crate) r#type: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub(crate) struct Tool {
     pub(crate) r#type: String,
     pub(crate) function: ToolFunction,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 pub(crate) struct ToolFunction {
     pub(crate) description: String,
     pub(crate) name: String,
@@ -117,7 +117,7 @@ pub(crate) struct Response {
     model: String,
     system_fingerprint: String,
     pub(crate) choices: Vec<Choice>,
-    usage: Option<Usage>,
+    pub(crate) usage: serde_json::Value,
 }
 
 #[derive(Deserialize)]
@@ -143,25 +143,4 @@ pub(crate) enum FinishReason {
     ContentFilter,
     ToolCalls,
     InsufficientSystemResource,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct Usage {
-    prompt_tokens: u32,
-    completion_tokens: u32,
-    total_tokens: u32,
-    prompt_tokens_details: PromptTokensDetails,
-    completion_tokens_details: Option<CompletionTokensDetails>,
-    prompt_cache_hit_tokens: u32,
-    prompt_cache_miss_tokens: u32,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct PromptTokensDetails {
-    cached_tokens: u32,
-}
-
-#[derive(Deserialize)]
-pub(crate) struct CompletionTokensDetails {
-    reasoning_tokens: u32,
 }
