@@ -4,17 +4,20 @@ pub mod tool;
 
 use std::{
     io::{BufRead, BufReader},
-    sync::{Mutex, mpsc},
+    sync::{
+        Mutex,
+        mpsc::{self},
+    },
     thread,
 };
 
 use agent::Agent;
-use bevy::prelude::*;
+use bevy::{ecs::query::QueryEntityError, prelude::*};
 
 use crate::{
     agent::{AgentStatus, DialogMessage, ToolCall},
     chat_completion::{ResponseFormat, Thinking, ToolFunction},
-    tool::{AgentTools, Tool},
+    tool::{AgentTools, RawToolInvocation, Tool},
 };
 
 #[derive(Message)]
@@ -64,20 +67,50 @@ pub struct LlmAgentPlugin;
 
 impl Plugin for LlmAgentPlugin {
     fn build(&self, app: &mut bevy::app::App) {
+        let (tx, rx) = crossbeam::channel::unbounded();
         app.add_message::<UserMessage>()
             .add_message::<AgentMessage>()
-            .add_systems(FixedUpdate, (read_user_message, write_agent_message));
+            .insert_resource(RawToolInvocationSender(tx))
+            .insert_resource(RawToolInvocationReceiver(rx))
+            .add_systems(
+                FixedUpdate,
+                (
+                    read_user_message,
+                    write_agent_message,
+                    read_raw_tool_invocation,
+                ),
+            );
     }
 }
 
 pub const DEEPSEEK_V4_FLASH: &str = "deepseek-v4-flash";
 pub const DEEPSEEK_V4_PRO: &str = "deepseek-v4-pro";
 
+#[derive(Resource, Deref)]
+struct RawToolInvocationReceiver(pub(crate) crossbeam::channel::Receiver<RawToolInvocation>);
+
+#[derive(Resource, Deref)]
+struct RawToolInvocationSender(pub(crate) crossbeam::channel::Sender<RawToolInvocation>);
+
+fn read_raw_tool_invocation(
+    raw_tool_invocation_receiver: Res<RawToolInvocationReceiver>,
+    mut commands: Commands,
+) {
+    for raw_tool_invocation in raw_tool_invocation_receiver.try_iter() {
+        (raw_tool_invocation.dispatch)(
+            &mut commands,
+            raw_tool_invocation.raw_args,
+            Mutex::new(Some(raw_tool_invocation.raw_responder)),
+        );
+    }
+}
+
 fn read_user_message(
     mut agent_query: Query<&mut Agent>,
     agent_tools_query: Query<&AgentTools>,
     tool_query: Query<&Tool>,
     mut reader: MessageReader<UserMessage>,
+    raw_tool_invocation_sender: Res<RawToolInvocationSender>,
 ) {
     for UserMessage { entity, prompt } in reader.read() {
         let mut agent = agent_query.get_mut(*entity).unwrap();
@@ -92,17 +125,20 @@ fn read_user_message(
         }
         agent.status = AgentStatus::Streaming(Mutex::new(rx));
 
-        let tools: Vec<_> = agent_tools_query
-            .get(*entity)
-            .unwrap()
-            .iter()
-            .map(|entity| tool_query.get(entity).unwrap().clone())
-            .collect();
+        let tools: Vec<Tool> = match agent_tools_query.get(*entity) {
+            Ok(tools) => tools
+                .iter()
+                .map(|entity| tool_query.get(entity).unwrap().clone())
+                .collect(),
+            Err(QueryEntityError::QueryDoesNotMatch(..)) => Vec::new(),
+            Err(err) => panic!("{err}"),
+        };
 
         let api_key = agent.api_key.to_owned();
         let model = agent.model.to_owned();
         let thinking = agent.thinking.to_owned();
         let dialog = agent.dialog.to_owned();
+        let raw_tool_invocation_sender = raw_tool_invocation_sender.clone();
 
         thread::spawn(move || {
             let mut dialog = dialog;
@@ -149,7 +185,7 @@ fn read_user_message(
 
                 let mut final_reasoning_content = String::new();
                 let mut final_content = String::new();
-                let mut final_tool_calls = Vec::new();
+                let mut final_tool_calls: Vec<ToolCall> = Vec::new();
 
                 for line in reader.lines().map_while(Result::ok) {
                     if let Some(data) = line.strip_prefix("data: ") {
@@ -171,10 +207,43 @@ fn read_user_message(
                                     dialog.push(DialogMessage::Assistant {
                                         content: final_content,
                                         reasoning_content: final_reasoning_content,
-                                        tool_calls: final_tool_calls,
+                                        tool_calls: final_tool_calls.clone(),
                                     });
-                                    // TODO: Dispatch the tool
-                                    // PROBLEM: dispatch(world, ...) 时，world 会阻塞引擎且不能跨线程传输
+
+                                    let mut tool_call_waiters =
+                                        Vec::with_capacity(final_tool_calls.len());
+
+                                    for tool_call in final_tool_calls {
+                                        let (tx, rx) = oneshot::channel();
+                                        tool_call_waiters.push((tool_call.id, rx));
+
+                                        raw_tool_invocation_sender
+                                            .send(RawToolInvocation {
+                                                raw_args: tool_call.arguments,
+                                                raw_responder: tx,
+                                                dispatch: tools
+                                                    .iter()
+                                                    .find(|tool| tool.name == tool_call.name)
+                                                    .unwrap()
+                                                    .dispatch,
+                                            })
+                                            .unwrap();
+                                    }
+
+                                    for tool_call_waiter in tool_call_waiters {
+                                        let result = tool_call_waiter.1.recv().unwrap();
+                                        let tool_call_id = tool_call_waiter.0;
+                                        dialog.push(DialogMessage::Tool {
+                                            id: tool_call_id.clone(),
+                                            result: result.clone(),
+                                        });
+                                        tx.send(AgentMessageDelta::ToolResult {
+                                            content: result,
+                                            tool_call_id,
+                                        })
+                                        .unwrap();
+                                    }
+
                                     break;
                                 }
                                 Length => {
@@ -227,6 +296,7 @@ fn read_user_message(
                                 });
                             } else {
                                 let last_tool_call = final_tool_calls.last_mut().unwrap();
+                                // TODO: 以下断言在实测中发现可能存在例外：assertion failed: tool_call.id.is_none()
                                 assert!(tool_call.id.is_none());
                                 assert!(tool_call.function.name.is_none());
                                 last_tool_call

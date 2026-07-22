@@ -18,6 +18,7 @@ default-features = false
 
 [dependencies]
 bevy = { workspace = true, features = ["bevy_log", "bevy_scene"] }
+crossbeam = "0.8.4"
 oneshot = { version = "0.2.1", features = ["std"] }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

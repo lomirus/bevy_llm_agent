@@ -37,10 +37,18 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     ));
 }
 
+#[derive(Resource)]
+enum OutputPhase {
+    Content,
+    ToolCallName,
+    ToolCallArgs,
+}
+
 fn print_text(
     mut agent_messages: MessageReader<bevy_llm_agent::AgentMessage>,
     mut app_exit: MessageWriter<AppExit>,
     counter: Res<Counter>,
+    mut output_phase: ResMut<OutputPhase>
 ) {
     for agent_message in agent_messages.read() {
         use AgentMessageDelta::*;
@@ -52,11 +60,31 @@ fn print_text(
             ToolCall {
                 name, arguments, ..
             } => {
-                println!();
-                info!("[TOOL CALL] {}({})", name, arguments);
+                match *output_phase {
+                    OutputPhase::Content => {
+                        *output_phase = OutputPhase::ToolCallName;
+                        println!();
+                        print!("[TOOL CALL] {name}");
+                        if arguments != "" {
+                            *output_phase = OutputPhase::ToolCallArgs;
+                            print!("({arguments}");
+                        }
+                    }
+                    OutputPhase::ToolCallName => {
+                        print!("{name}");
+                        if arguments != "" {
+                            *output_phase = OutputPhase::ToolCallArgs;
+                            print!("({arguments}");
+                        }
+                    }
+                    OutputPhase::ToolCallArgs => {
+                        print!("{arguments}");
+                    }
+                }
             }
             ToolResult { content, .. } => {
-                info!("[TOOL RESULT] {}", content);
+                *output_phase = OutputPhase::Content;
+                println!(") = {}", content);
             }
             Finish(_) => {
                 app_exit.write(if counter.0 > 10 {
@@ -82,6 +110,7 @@ fn main() {
         ))
         .add_message::<ToolInvocation<GetCounter>>()
         .add_message::<ToolInvocation<AddToCounter>>()
+        .insert_resource(OutputPhase::Content)
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, (print_text, get_counter, add_to_counter))
         .run();

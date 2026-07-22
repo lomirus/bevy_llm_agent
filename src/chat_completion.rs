@@ -111,17 +111,24 @@ pub(crate) struct ToolCallFunction {
 
 #[derive(Deserialize)]
 pub(crate) struct Response {
+    #[expect(unused)]
     id: String,
+    #[expect(unused)]
     object: String,
+    #[expect(unused)]
     created: u32,
+    #[expect(unused)]
     model: String,
+    #[expect(unused)]
     system_fingerprint: String,
     pub(crate) choices: Vec<Choice>,
-    pub(crate) usage: serde_json::Value,
+    #[expect(unused)]
+    pub(crate) usage: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
 pub(crate) struct Choice {
+    #[expect(unused)]
     index: u8,
     pub(crate) delta: Delta,
     pub(crate) finish_reason: Option<FinishReason>,
@@ -129,6 +136,7 @@ pub(crate) struct Choice {
 
 #[derive(Deserialize)]
 pub(crate) struct Delta {
+    #[expect(unused)]
     pub(crate) role: Option<String>,
     pub(crate) content: Option<String>,
     pub(crate) reasoning_content: Option<String>,

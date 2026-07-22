@@ -17,6 +17,17 @@ pub struct ToolInvocation<T: ToolTrait> {
     responder: Mutex<Option<oneshot::Sender<T::Output>>>,
 }
 
+#[derive(Message)]
+pub(crate) struct RawToolInvocation {
+    pub(crate) raw_args: String,
+    pub(crate) raw_responder: oneshot::Sender<String>,
+    pub(crate) dispatch: fn(
+        &mut Commands,
+        raw_args: String,
+        raw_responder: Mutex<Option<oneshot::Sender<String>>>,
+    ) -> (),
+}
+
 impl<T: ToolTrait> ToolInvocation<T> {
     pub fn respond(&self, output: T::Output) {
         if let Some(sender) = self.responder.lock().unwrap().take() {
@@ -31,7 +42,7 @@ pub struct Tool {
     pub description: String,
     pub parameters: serde_json::Value,
     pub(crate) dispatch: fn(
-        &mut World,
+        &mut Commands,
         raw_args: String,
         raw_responder: Mutex<Option<oneshot::Sender<String>>>,
     ) -> (),
@@ -52,26 +63,28 @@ impl Default for Tool {
 impl Tool {
     pub fn of<T: ToolTrait + JsonSchema>() -> Self {
         let full_name = type_name::<T>().to_owned();
-        let schema = serde_json::json!(schemars::schema_for!(T));
         Tool {
             name: full_name.split("::").last().unwrap().to_owned(),
-            description: schema.get("description").unwrap().to_string(),
-            parameters: schema,
+            description: serde_json::json!(schemars::schema_for!(T))
+                .get("description")
+                .unwrap()
+                .to_string(),
+            parameters: serde_json::json!(schemars::schema_for!(T::Args)),
             dispatch:
-                |world: &mut World,
+                |commands: &mut Commands,
                  raw_args: String,
                  raw_responder: Mutex<Option<oneshot::Sender<String>>>| {
                     let args: T::Args = serde_json::from_str(&raw_args).unwrap();
                     let raw_responder = raw_responder.lock().unwrap().take().unwrap();
                     let (tx, rx) = oneshot::channel::<T::Output>();
-                    world.write_message(ToolInvocation::<T> {
+                    commands.write_message(ToolInvocation::<T> {
                         args,
                         responder: Mutex::new(Some(tx)),
                     });
                     thread::spawn(move || {
                         let result = rx.recv().unwrap();
                         let raw_result = serde_json::to_string(&result).unwrap();
-                        raw_responder.send(raw_result);
+                        raw_responder.send(raw_result).unwrap();
                     });
                 },
         }
@@ -79,6 +92,6 @@ impl Tool {
 }
 
 pub trait ToolTrait: 'static {
-    type Args: DeserializeOwned + Send + Sync;
+    type Args: DeserializeOwned + Send + Sync + JsonSchema;
     type Output: Serialize + Send;
 }
