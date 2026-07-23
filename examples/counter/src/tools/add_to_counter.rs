@@ -18,9 +18,13 @@ pub(crate) struct Args {
 impl ToolTrait for AddToCounter {
     type Args = Args;
     type Output = ();
+
+    fn boxed_system() -> bevy::ecs::system::BoxedSystem {
+        Box::new(IntoSystem::into_system(add_to_counter))
+    }
 }
 
-pub(crate) fn add_to_counter(
+fn add_to_counter(
     mut calls: MessageReader<ToolInvocation<AddToCounter>>,
     mut counter: ResMut<Counter>,
 ) {

@@ -15,12 +15,13 @@ pub(crate) struct Args {}
 impl ToolTrait for GetCounter {
     type Args = Args;
     type Output = usize;
+
+    fn boxed_system() -> bevy::ecs::system::BoxedSystem {
+        Box::new(IntoSystem::into_system(get_counter))
+    }
 }
 
-pub(crate) fn get_counter(
-    mut calls: MessageReader<ToolInvocation<GetCounter>>,
-    counter: Res<Counter>,
-) {
+fn get_counter(mut calls: MessageReader<ToolInvocation<GetCounter>>, counter: Res<Counter>) {
     for call in calls.read() {
         call.respond(counter.0);
     }

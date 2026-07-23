@@ -7,13 +7,11 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AgentMessageDelta, DEEPSEEK_V4_FLASH, LlmAgentPlugin, UserMessage,
+    AgentMessageDelta, AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin, UserMessage,
     agent::{Agent, Thinking},
-    tool::{AgentTools, Tool, ToolInvocation},
+    tool::{AgentTools, Tool},
 };
 use tools::{AddToCounter, GetCounter};
-
-use crate::tools::{add_to_counter, get_counter};
 
 #[derive(Resource)]
 struct Counter(usize);
@@ -33,22 +31,22 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
 
     sender.write(UserMessage::new(
         entity,
-        "By calling add_to_counter, the final value obtained by get_counter is greater than 10.",
+        "By calling add_to_counter more than once, let the final value obtained by get_counter greater than 10.",
     ));
 }
 
 #[derive(Resource)]
 enum OutputPhase {
-    Content,
     ToolCallName,
     ToolCallArgs,
+    Others,
 }
 
 fn print_text(
     mut agent_messages: MessageReader<bevy_llm_agent::AgentMessage>,
     mut app_exit: MessageWriter<AppExit>,
     counter: Res<Counter>,
-    mut output_phase: ResMut<OutputPhase>
+    mut output_phase: ResMut<OutputPhase>,
 ) {
     for agent_message in agent_messages.read() {
         use AgentMessageDelta::*;
@@ -58,33 +56,40 @@ fn print_text(
                 std::io::stdout().flush().unwrap();
             }
             ToolCall {
-                name, arguments, ..
-            } => {
-                match *output_phase {
-                    OutputPhase::Content => {
+                name,
+                arguments,
+                tool_call_id,
+            } => match *output_phase {
+                OutputPhase::ToolCallName => {
+                    assert_eq!(tool_call_id, "");
+                    *output_phase = OutputPhase::ToolCallArgs;
+                    print!("{arguments}");
+                }
+                OutputPhase::ToolCallArgs => {
+                    if tool_call_id != "" {
                         *output_phase = OutputPhase::ToolCallName;
-                        println!();
-                        print!("[TOOL CALL] {name}");
-                        if arguments != "" {
-                            *output_phase = OutputPhase::ToolCallArgs;
-                            print!("({arguments}");
-                        }
-                    }
-                    OutputPhase::ToolCallName => {
-                        print!("{name}");
-                        if arguments != "" {
-                            *output_phase = OutputPhase::ToolCallArgs;
-                            print!("({arguments}");
-                        }
-                    }
-                    OutputPhase::ToolCallArgs => {
+                        println!(")");
+                        print!("[TOOL INVOKE] {tool_call_id} => {name}(");
+                    } else {
                         print!("{arguments}");
                     }
                 }
-            }
-            ToolResult { content, .. } => {
-                *output_phase = OutputPhase::Content;
-                println!(") = {}", content);
+                OutputPhase::Others => {
+                    assert_ne!(tool_call_id, "");
+                    *output_phase = OutputPhase::ToolCallName;
+                    println!();
+                    print!("[TOOL INVOKE] {tool_call_id} => {name}(");
+                }
+            },
+            ToolResult {
+                content,
+                tool_call_id,
+            } => {
+                if let OutputPhase::ToolCallArgs = *output_phase {
+                    println!(")");
+                    *output_phase = OutputPhase::Others;
+                }
+                println!("[TOOL RESULT] {} => {}", tool_call_id, content);
             }
             Finish(_) => {
                 app_exit.write(if counter.0 > 10 {
@@ -103,15 +108,15 @@ fn main() {
         .insert_resource(Counter(0))
         .add_plugins((
             DefaultPlugins.set(LogPlugin {
-                filter: format!("{DEFAULT_FILTER},rig::agent::prompt_request::streaming=warn"),
+                filter: DEFAULT_FILTER.to_owned(),
                 ..default()
             }),
             LlmAgentPlugin,
         ))
-        .add_message::<ToolInvocation<GetCounter>>()
-        .add_message::<ToolInvocation<AddToCounter>>()
-        .insert_resource(OutputPhase::Content)
+        .add_agent_tool::<GetCounter>()
+        .add_agent_tool::<AddToCounter>()
+        .insert_resource(OutputPhase::Others)
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, (print_text, get_counter, add_to_counter))
+        .add_systems(FixedUpdate, print_text)
         .run();
 }
