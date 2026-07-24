@@ -3,12 +3,12 @@ use bevy::prelude::*;
 use crate::agent::{AgentStatus, DialogMessage, Thinking};
 
 #[derive(Component, Default, Clone)]
+#[require(AgentStatus)]
 pub struct Agent {
     pub model: String,
     pub thinking: Thinking,
     pub dialog: Vec<DialogMessage>,
     pub(crate) api_key: String,
-    pub(crate) status: AgentStatus,
 }
 
 impl Agent {
@@ -19,7 +19,6 @@ impl Agent {
             thinking,
             dialog: Vec::new(),
             api_key: std::env::var("DEEPSEEK_API_KEY").unwrap(),
-            status: AgentStatus::Idle,
         }
     }
 }

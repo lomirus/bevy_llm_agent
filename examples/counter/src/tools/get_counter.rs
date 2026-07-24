@@ -21,8 +21,8 @@ impl ToolTrait for GetCounter {
     }
 }
 
-fn get_counter(mut calls: MessageReader<ToolInvocation<GetCounter>>, counter: Res<Counter>) {
+fn get_counter(mut calls: MessageMutator<ToolInvocation<GetCounter>>, counter: Res<Counter>) {
     for call in calls.read() {
-        call.respond(counter.0);
+        call.respond(counter.0).unwrap();
     }
 }

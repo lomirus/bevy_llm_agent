@@ -1,3 +1,5 @@
+#![allow(clippy::module_inception)]
+
 mod tool;
 mod tool_invocation;
 mod tool_trait;
@@ -16,7 +18,6 @@ pub struct ToolOf(Entity);
 #[relationship_target(relationship = ToolOf)]
 pub struct AgentTools(Vec<Entity>);
 
-#[derive(Message)]
 pub(crate) struct RawToolInvocation {
     pub(crate) raw_args: String,
     pub(crate) raw_responder: oneshot::Sender<String>,

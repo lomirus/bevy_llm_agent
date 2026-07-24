@@ -1,16 +1,10 @@
 use std::sync::{Mutex, mpsc::Receiver};
+use bevy::prelude::*;
+use crate::messages::agent_message::AgentMessageDelta;
 
-use crate::AgentMessageDelta;
-
-#[derive(Default)]
+#[derive(Default, Component)]
 pub(crate) enum AgentStatus {
     #[default]
     Idle,
     Streaming(Mutex<Receiver<AgentMessageDelta>>),
-}
-
-impl Clone for AgentStatus {
-    fn clone(&self) -> Self {
-        Self::Idle
-    }
 }

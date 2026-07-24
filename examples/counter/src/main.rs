@@ -7,8 +7,12 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AgentMessageDelta, AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin, UserMessage,
+    AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin,
     agent::{Agent, Thinking},
+    messages::{
+        agent_message::{AgentMessage, AgentMessageDelta},
+        user_message::UserMessage,
+    },
     tool::{AgentTools, Tool},
 };
 use tools::{AddToCounter, GetCounter};
@@ -43,7 +47,7 @@ enum OutputPhase {
 }
 
 fn print_text(
-    mut agent_messages: MessageReader<bevy_llm_agent::AgentMessage>,
+    mut agent_messages: MessageReader<AgentMessage>,
     mut app_exit: MessageWriter<AppExit>,
     counter: Res<Counter>,
     mut output_phase: ResMut<OutputPhase>,

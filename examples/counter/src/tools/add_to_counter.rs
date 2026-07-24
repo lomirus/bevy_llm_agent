@@ -25,11 +25,11 @@ impl ToolTrait for AddToCounter {
 }
 
 fn add_to_counter(
-    mut calls: MessageReader<ToolInvocation<AddToCounter>>,
+    mut calls: MessageMutator<ToolInvocation<AddToCounter>>,
     mut counter: ResMut<Counter>,
 ) {
     for call in calls.read() {
         counter.0 += call.args.increment;
-        call.respond(());
+        call.respond(()).unwrap();
     }
 }

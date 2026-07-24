@@ -1,7 +1,10 @@
 use crate::{
-    AgentMessageDelta, FinishReason, UserMessage,
-    agent::{Agent, AgentStatus, DialogMessage, Thinking, ToolCall},
+    agent::{self, Agent, AgentStatus, DialogMessage, Thinking},
     chat_completion::{self, ResponseFormat, ToolFunction},
+    messages::{
+        agent_message::{AgentMessageDelta, FinishReason},
+        user_message::UserMessage,
+    },
     plugin::RawToolInvocationSender,
     tool::{AgentTools, RawToolInvocation, Tool},
 };
@@ -14,18 +17,23 @@ use std::{
 
 enum StreamOutcome {
     Finished(FinishReason),
-    ToolCalls {
-        content: String,
-        reasoning_content: String,
-        tool_calls: Vec<ToolCall>,
-    },
+    ToolCalls,
 }
 
-fn consume_sse_stream(reader: impl BufRead, tx: &mpsc::Sender<AgentMessageDelta>) -> StreamOutcome {
-    let mut final_reasoning_content = String::new();
-    let mut final_content = String::new();
-    let mut final_tool_calls: Vec<ToolCall> = Vec::new();
+fn emit_delta(
+    dialog: &mut Vec<DialogMessage>,
+    tx: &mpsc::Sender<AgentMessageDelta>,
+    delta: AgentMessageDelta,
+) {
+    agent::apply_delta(dialog, &delta);
+    tx.send(delta).unwrap();
+}
 
+fn consume_sse_stream(
+    reader: impl BufRead,
+    dialog: &mut Vec<DialogMessage>,
+    tx: &mpsc::Sender<AgentMessageDelta>,
+) -> StreamOutcome {
     for line in reader.lines().map_while(Result::ok) {
         let Some(data) = line.strip_prefix("data: ") else {
             continue;
@@ -45,49 +53,36 @@ fn consume_sse_stream(reader: impl BufRead, tx: &mpsc::Sender<AgentMessageDelta>
                 InsufficientSystemResource => {
                     StreamOutcome::Finished(FinishReason::InsufficientSystemResource)
                 }
-                ToolCalls => StreamOutcome::ToolCalls {
-                    content: final_content,
-                    reasoning_content: final_reasoning_content,
-                    tool_calls: final_tool_calls,
-                },
+                ToolCalls => StreamOutcome::ToolCalls,
             };
         }
         if let Some(reasoning_content) = &choice.delta.reasoning_content {
             assert!(choice.delta.content.is_none());
             assert!(choice.delta.tool_calls.is_none());
-            tx.send(AgentMessageDelta::ReasoningContent(
-                reasoning_content.to_owned(),
-            ))
-            .unwrap();
-            final_reasoning_content.push_str(reasoning_content);
+            emit_delta(
+                dialog,
+                tx,
+                AgentMessageDelta::ReasoningContent(reasoning_content.to_owned()),
+            );
         } else if let Some(content) = &choice.delta.content {
             assert!(choice.delta.tool_calls.is_none());
-            tx.send(AgentMessageDelta::Content(content.to_owned()))
-                .unwrap();
-            final_content.push_str(content);
+            emit_delta(dialog, tx, AgentMessageDelta::Content(content.to_owned()));
         } else if let Some(tool_calls) = &choice.delta.tool_calls {
             assert_eq!(tool_calls.len(), 1);
-            let tool_call = tool_calls[0].clone();
-            tx.send(AgentMessageDelta::ToolCall {
-                name: tool_call.function.name.clone().unwrap_or_default(),
-                arguments: tool_call.function.arguments.clone(),
-                tool_call_id: tool_call.id.clone().unwrap_or_default(),
-            })
-            .unwrap();
-            if let Some(tool_call_id) = tool_call.id {
-                assert!(tool_call.function.name.is_some());
-                final_tool_calls.push(ToolCall {
-                    id: tool_call_id,
-                    name: tool_call.function.name.unwrap(),
-                    arguments: tool_call.function.arguments,
-                });
-            } else {
-                assert!(tool_call.function.name.is_none());
-                let last_tool_call = final_tool_calls.last_mut().unwrap();
-                last_tool_call
-                    .arguments
-                    .push_str(&tool_call.function.arguments);
+            let tool_call = &tool_calls[0];
+            match tool_call.id {
+                Some(_) => assert!(tool_call.function.name.is_some()),
+                None => assert!(tool_call.function.name.is_none()),
             }
+            emit_delta(
+                dialog,
+                tx,
+                AgentMessageDelta::ToolCall {
+                    name: tool_call.function.name.clone().unwrap_or_default(),
+                    arguments: tool_call.function.arguments.clone(),
+                    tool_call_id: tool_call.id.clone().unwrap_or_default(),
+                },
+            );
         }
     }
     unreachable!()
@@ -143,22 +138,16 @@ fn run_agent_loop(
 
         let reader = BufReader::new(resp.body_mut().as_reader());
 
-        match consume_sse_stream(reader, &tx) {
+        match consume_sse_stream(reader, dialog, &tx) {
             StreamOutcome::Finished(reason) => {
                 tx.send(AgentMessageDelta::Finish(reason)).unwrap();
                 return;
             }
-            StreamOutcome::ToolCalls {
-                content,
-                reasoning_content,
-                tool_calls,
-            } => {
-                dialog.push(DialogMessage::Assistant {
-                    content,
-                    reasoning_content,
-                    tool_calls: tool_calls.clone(),
-                });
-
+            StreamOutcome::ToolCalls => {
+                let DialogMessage::Assistant { tool_calls, .. } = dialog.last().unwrap() else {
+                    unreachable!()
+                };
+                let tool_calls = tool_calls.clone();
                 let mut tool_call_waiters = Vec::with_capacity(tool_calls.len());
 
                 for tool_call in tool_calls {
@@ -181,15 +170,14 @@ fn run_agent_loop(
                 for tool_call_waiter in tool_call_waiters {
                     let result = tool_call_waiter.1.recv().unwrap();
                     let tool_call_id = tool_call_waiter.0;
-                    dialog.push(DialogMessage::Tool {
-                        id: tool_call_id.clone(),
-                        result: result.clone(),
-                    });
-                    tx.send(AgentMessageDelta::ToolResult {
-                        content: result,
-                        tool_call_id,
-                    })
-                    .unwrap();
+                    emit_delta(
+                        dialog,
+                        &tx,
+                        AgentMessageDelta::ToolResult {
+                            content: result,
+                            tool_call_id,
+                        },
+                    );
                 }
             }
         }
@@ -197,24 +185,24 @@ fn run_agent_loop(
 }
 
 pub(crate) fn read_user_message(
-    mut agent_query: Query<&mut Agent>,
+    mut agent_query: Query<(&mut Agent, &mut AgentStatus)>,
     agent_tools_query: Query<&AgentTools>,
     tool_query: Query<&Tool>,
     mut reader: MessageReader<UserMessage>,
     raw_tool_invocation_sender: Res<RawToolInvocationSender>,
 ) {
     for UserMessage { entity, prompt } in reader.read() {
-        let mut agent = agent_query.get_mut(*entity).unwrap();
+        let (mut agent,mut agent_status) = agent_query.get_mut(*entity).unwrap();
 
         agent.dialog.push(DialogMessage::User {
             content: prompt.to_owned(),
         });
 
         let (tx, rx) = mpsc::channel::<AgentMessageDelta>();
-        if let AgentStatus::Streaming(_) = agent.status {
+        if let AgentStatus::Streaming(_) = *agent_status {
             unreachable!();
         }
-        agent.status = AgentStatus::Streaming(Mutex::new(rx));
+       *agent_status = AgentStatus::Streaming(Mutex::new(rx));
 
         let tools: Vec<Tool> = match agent_tools_query.get(*entity) {
             Ok(tools) => tools

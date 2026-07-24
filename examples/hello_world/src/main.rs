@@ -3,8 +3,12 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AgentMessage, AgentMessageDelta, DEEPSEEK_V4_FLASH, LlmAgentPlugin, UserMessage,
+    DEEPSEEK_V4_FLASH, LlmAgentPlugin,
     agent::{Agent, Thinking},
+    messages::{
+        agent_message::{AgentMessage, AgentMessageDelta},
+        user_message::UserMessage,
+    },
 };
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {

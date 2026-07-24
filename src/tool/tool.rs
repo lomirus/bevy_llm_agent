@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 use schemars::JsonSchema;
-use std::{any::type_name, sync::Mutex};
+use std::any::type_name;
 
 use crate::tool::{ToolInvocation, ToolTrait};
 
@@ -44,7 +44,7 @@ impl Tool {
                 let raw_responder = raw_responder;
                 commands.write_message(ToolInvocation::<T> {
                     args,
-                    responder: Mutex::new(Some(raw_responder)),
+                    responder: Some(raw_responder),
                 });
             },
         }

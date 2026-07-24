@@ -1,5 +1,5 @@
 use crate::{
-    AgentMessage, UserMessage,
+    messages::{agent_message::AgentMessage, user_message::UserMessage},
     plugin::{
         RawToolInvocationReceiver, RawToolInvocationSender,
         systems::{read_raw_tool_invocation, read_user_message, write_agent_message},
