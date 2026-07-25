@@ -5,6 +5,7 @@ use crate::tool::ToolTrait;
 #[derive(Message)]
 pub struct ToolInvocation<T: ToolTrait> {
     pub args: T::Args,
+    pub entity: Entity,
     pub(crate) responder: Option<oneshot::Sender<String>>,
 }
 

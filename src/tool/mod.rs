@@ -19,8 +19,9 @@ pub struct ToolOf(Entity);
 pub struct AgentTools(Vec<Entity>);
 
 pub(crate) struct RawToolInvocation {
+    pub(crate) entity: Entity,
     pub(crate) raw_args: String,
     pub(crate) raw_responder: oneshot::Sender<String>,
     pub(crate) dispatch:
-        fn(&mut Commands, raw_args: String, raw_responder: oneshot::Sender<String>) -> (),
+        fn(&mut Commands, Entity, raw_args: String, raw_responder: oneshot::Sender<String>) -> (),
 }

@@ -96,6 +96,7 @@ fn run_agent_loop(
     api_key: String,
     raw_tool_invocation_sender: crossbeam::channel::Sender<RawToolInvocation>,
     tx: mpsc::Sender<AgentMessageDelta>,
+    entity: Entity,
 ) {
     loop {
         use crate::agent::Thinking::*;
@@ -156,6 +157,7 @@ fn run_agent_loop(
 
                     raw_tool_invocation_sender
                         .send(RawToolInvocation {
+                            entity,
                             raw_args: tool_call.arguments,
                             raw_responder: tx,
                             dispatch: tools
@@ -218,6 +220,7 @@ pub(crate) fn read_user_message(
         let thinking = agent.thinking.to_owned();
         let dialog = agent.dialog.to_owned();
         let raw_tool_invocation_sender = raw_tool_invocation_sender.clone();
+        let entity = entity.clone();
 
         thread::spawn(move || {
             let mut dialog = dialog;
@@ -229,6 +232,7 @@ pub(crate) fn read_user_message(
                 api_key,
                 raw_tool_invocation_sender,
                 tx,
+                entity
             );
         });
     }

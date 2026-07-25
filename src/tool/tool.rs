@@ -10,7 +10,7 @@ pub struct Tool {
     pub description: String,
     pub parameters: serde_json::Value,
     pub(crate) dispatch:
-        fn(&mut Commands, raw_args: String, raw_responder: oneshot::Sender<String>) -> (),
+        fn(&mut Commands, Entity, raw_args: String, raw_responder: oneshot::Sender<String>) -> (),
 }
 
 impl Default for Tool {
@@ -20,7 +20,7 @@ impl Default for Tool {
             name: String::new(),
             description: String::new(),
             parameters: serde_json::Value::Null,
-            dispatch: |_, _, _| {},
+            dispatch: |_, _, _, _| {},
         }
     }
 }
@@ -38,12 +38,14 @@ impl Tool {
                 .to_string(),
             parameters: serde_json::json!(schemars::schema_for!(T::Args)),
             dispatch: |commands: &mut Commands,
+                       entity: Entity,
                        raw_args: String,
                        raw_responder: oneshot::Sender<String>| {
                 let args: T::Args = serde_json::from_str(&raw_args).unwrap();
                 let raw_responder = raw_responder;
                 commands.write_message(ToolInvocation::<T> {
                     args,
+                    entity,
                     responder: Some(raw_responder),
                 });
             },
