@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_llm_agent::tool::{ToolInvocation, ToolTrait};
+use bevy_llm_agent::tool::{ToolCall, ToolTrait};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
@@ -25,7 +25,7 @@ impl ToolTrait for AddToCounter {
 }
 
 fn add_to_counter(
-    mut calls: MessageMutator<ToolInvocation<AddToCounter>>,
+    mut calls: MessageMutator<ToolCall<AddToCounter>>,
     mut counter: ResMut<Counter>,
 ) {
     for call in calls.read() {

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use schemars::JsonSchema;
 use std::any::type_name;
 
-use crate::tool::{ToolInvocation, ToolTrait};
+use crate::tool::{ToolCall, ToolTrait};
 
 #[derive(Clone, Component)]
 pub struct Tool {
@@ -43,7 +43,7 @@ impl Tool {
                        raw_responder: oneshot::Sender<String>| {
                 let args: T::Args = serde_json::from_str(&raw_args).unwrap();
                 let raw_responder = raw_responder;
-                commands.write_message(ToolInvocation::<T> {
+                commands.write_message(ToolCall::<T> {
                     args,
                     entity,
                     responder: Some(raw_responder),

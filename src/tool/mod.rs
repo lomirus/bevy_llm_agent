@@ -5,7 +5,7 @@ mod tool_invocation;
 mod tool_trait;
 
 pub use tool::Tool;
-pub use tool_invocation::ToolInvocation;
+pub use tool_invocation::ToolCall;
 pub use tool_trait::ToolTrait;
 
 use bevy::prelude::*;
@@ -18,7 +18,7 @@ pub struct ToolOf(Entity);
 #[relationship_target(relationship = ToolOf)]
 pub struct AgentTools(Vec<Entity>);
 
-pub(crate) struct RawToolInvocation {
+pub(crate) struct RawToolCall {
     pub(crate) entity: Entity,
     pub(crate) raw_args: String,
     pub(crate) raw_responder: oneshot::Sender<String>,

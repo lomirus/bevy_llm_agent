@@ -1,8 +1,8 @@
-use crate::plugin::RawToolInvocationReceiver;
+use crate::plugin::RawToolCallReceiver;
 use bevy::prelude::*;
 
 pub(crate) fn read_raw_tool_invocation(
-    raw_tool_invocation_receiver: Res<RawToolInvocationReceiver>,
+    raw_tool_invocation_receiver: Res<RawToolCallReceiver>,
     mut commands: Commands,
 ) {
     for raw_tool_invocation in raw_tool_invocation_receiver.try_iter() {

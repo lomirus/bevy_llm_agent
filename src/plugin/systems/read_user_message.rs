@@ -5,8 +5,8 @@ use crate::{
         agent_message::{AgentMessageDelta, FinishReason},
         user_message::UserMessage,
     },
-    plugin::RawToolInvocationSender,
-    tool::{AgentTools, RawToolInvocation, Tool},
+    plugin::RawToolCallSender,
+    tool::{AgentTools, RawToolCall, Tool},
 };
 use bevy::{ecs::query::QueryEntityError, prelude::*};
 use std::{
@@ -94,7 +94,7 @@ fn run_agent_loop(
     thinking: Thinking,
     tools: Vec<Tool>,
     api_key: String,
-    raw_tool_invocation_sender: crossbeam::channel::Sender<RawToolInvocation>,
+    raw_tool_invocation_sender: crossbeam::channel::Sender<RawToolCall>,
     tx: mpsc::Sender<AgentMessageDelta>,
     entity: Entity,
 ) {
@@ -156,7 +156,7 @@ fn run_agent_loop(
                     tool_call_waiters.push((tool_call.id, rx));
 
                     raw_tool_invocation_sender
-                        .send(RawToolInvocation {
+                        .send(RawToolCall {
                             entity,
                             raw_args: tool_call.arguments,
                             raw_responder: tx,
@@ -191,7 +191,7 @@ pub(crate) fn read_user_message(
     agent_tools_query: Query<&AgentTools>,
     tool_query: Query<&Tool>,
     mut reader: MessageReader<UserMessage>,
-    raw_tool_invocation_sender: Res<RawToolInvocationSender>,
+    raw_tool_invocation_sender: Res<RawToolCallSender>,
 ) {
     for UserMessage { entity, prompt } in reader.read() {
         let (mut agent,mut agent_status) = agent_query.get_mut(*entity).unwrap();

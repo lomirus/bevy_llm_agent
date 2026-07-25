@@ -1,13 +1,13 @@
 mod core;
 mod systems;
 
-use crate::tool::RawToolInvocation;
+use crate::tool::RawToolCall;
 use bevy::prelude::*;
 
 pub use core::LlmAgentPlugin;
 
 #[derive(Resource, Deref)]
-struct RawToolInvocationReceiver(crossbeam::channel::Receiver<RawToolInvocation>);
+struct RawToolCallReceiver(crossbeam::channel::Receiver<RawToolCall>);
 
 #[derive(Resource, Deref)]
-struct RawToolInvocationSender(crossbeam::channel::Sender<RawToolInvocation>);
+struct RawToolCallSender(crossbeam::channel::Sender<RawToolCall>);

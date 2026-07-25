@@ -1,7 +1,7 @@
 use crate::{
     messages::{agent_message::AgentMessage, user_message::UserMessage},
     plugin::{
-        RawToolInvocationReceiver, RawToolInvocationSender,
+        RawToolCallReceiver, RawToolCallSender,
         systems::{read_raw_tool_invocation, read_user_message, write_agent_message},
     },
 };
@@ -14,8 +14,8 @@ impl Plugin for LlmAgentPlugin {
         let (tx, rx) = crossbeam::channel::unbounded();
         app.add_message::<UserMessage>()
             .add_message::<AgentMessage>()
-            .insert_resource(RawToolInvocationSender(tx))
-            .insert_resource(RawToolInvocationReceiver(rx))
+            .insert_resource(RawToolCallSender(tx))
+            .insert_resource(RawToolCallReceiver(rx))
             .add_systems(
                 FixedUpdate,
                 (
