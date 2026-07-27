@@ -1,13 +1,22 @@
 use bevy::prelude::*;
-use bevy_llm_agent::tool::{ToolCall, ToolTrait};
+use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::Counter;
 
 /// Get the current value of counter.
-#[derive(JsonSchema)]
+#[derive(SceneComponent, JsonSchema, Clone, Default)]
 pub(crate) struct GetCounter;
+
+impl GetCounter {
+    fn scene() -> impl Scene {
+        let tool = Tool::of::<Self>();
+        bsn! {
+            template_value(tool)
+        }
+    }
+}
 
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct Args {}

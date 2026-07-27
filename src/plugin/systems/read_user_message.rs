@@ -194,7 +194,7 @@ pub(crate) fn read_user_message(
     raw_tool_invocation_sender: Res<RawToolCallSender>,
 ) {
     for UserMessage { entity, prompt } in reader.read() {
-        let (mut agent,mut agent_status) = agent_query.get_mut(*entity).unwrap();
+        let (mut agent, mut agent_status) = agent_query.get_mut(*entity).unwrap();
 
         agent.dialog.push(DialogMessage::User {
             content: prompt.to_owned(),
@@ -204,7 +204,7 @@ pub(crate) fn read_user_message(
         if let AgentStatus::Streaming(_) = *agent_status {
             unreachable!();
         }
-       *agent_status = AgentStatus::Streaming(Mutex::new(rx));
+        *agent_status = AgentStatus::Streaming(Mutex::new(rx));
 
         let tools: Vec<Tool> = match agent_tools_query.get(*entity) {
             Ok(tools) => tools
@@ -232,7 +232,7 @@ pub(crate) fn read_user_message(
                 api_key,
                 raw_tool_invocation_sender,
                 tx,
-                entity
+                entity,
             );
         });
     }

@@ -13,7 +13,7 @@ use bevy_llm_agent::{
         agent_message::{AgentMessage, AgentMessageDelta},
         user_message::UserMessage,
     },
-    tool::{AgentTools, Tool},
+    tool::AgentTools,
 };
 use tools::{AddToCounter, GetCounter};
 
@@ -21,14 +21,12 @@ use tools::{AddToCounter, GetCounter};
 struct Counter(usize);
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let get_counter_tool = Tool::of::<GetCounter>();
-    let add_to_counter_tool = Tool::of::<AddToCounter>();
     let entity = commands
         .spawn_scene(bsn! {
             Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off)
             AgentTools [
-                template_value(get_counter_tool),
-                template_value(add_to_counter_tool)
+                @GetCounter,
+                @AddToCounter,
             ]
         })
         .id();
