@@ -1,21 +1,21 @@
 mod tools;
 
 use bevy::{
-    app::PropagateOver,
     asset::RenderAssetUsages,
-    camera::{visibility::RenderLayers, RenderTarget, ScalingMode},
+    camera::{RenderTarget, ScalingMode, visibility::RenderLayers},
     feathers::{
+        FeathersPlugins,
         containers::{subpane, subpane_body, subpane_header},
         controls::{ButtonVariant, FeathersButton, FeathersListRow, FeathersListView},
         dark_theme::create_dark_theme,
         palette,
         theme::{ThemeBackgroundColor, ThemeBorderColor, ThemedText, UiTheme},
-        tokens, FeathersPlugins,
+        tokens,
     },
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
     render::render_resource::{TextureDimension, TextureFormat, TextureUsages},
-    ui::{widget::ViewportNode, Selected},
+    ui::{Selected, widget::ViewportNode},
     ui_widgets::ValueChange,
 };
 use bevy_llm_agent::{
@@ -291,7 +291,9 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             coordinate: Coordinate::random(),
             moving_target: None,
         };
-        let entity = commands.spawn_scene(character_scene(character.clone())).id();
+        let entity = commands
+            .spawn_scene(character_scene(character.clone()))
+            .id();
         characters.push((entity, character));
     }
 
@@ -399,10 +401,6 @@ fn game_ui(characters: &[(Entity, Character)]) -> impl Scene {
                                     @caption: bsn! {
                                         Text("Continue Dialogue")
                                         ThemedText
-                                        TextFont {
-                                            font_size: FontSize::Px(UI_FONT_SIZE),
-                                        }
-                                        PropagateOver::<TextFont>
                                     }
                                     @variant: ButtonVariant::Primary,
                                 }
@@ -500,7 +498,12 @@ fn update_character_detail(
 
 fn update_character_sprites(
     selected: Res<SelectedCharacter>,
-    mut characters: Query<(Entity, Ref<Character>, &mut Transform, &MeshMaterial2d<ColorMaterial>)>,
+    mut characters: Query<(
+        Entity,
+        Ref<Character>,
+        &mut Transform,
+        &MeshMaterial2d<ColorMaterial>,
+    )>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let selection_changed = selected.is_changed();
