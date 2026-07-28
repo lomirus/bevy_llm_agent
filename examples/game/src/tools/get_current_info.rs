@@ -47,7 +47,7 @@ fn system(
         let self_info = (*character_query.get(call.entity).unwrap()).clone();
         let characters_info: Vec<_> = character_query
             .iter()
-            .filter(|char| char.id != self_info.id)
+            .filter(|char| char.id != self_info.id && !char.is_dead)
             .map(|char| (*char).clone())
             .collect();
         let elapsed_time = elapsed_time.0;

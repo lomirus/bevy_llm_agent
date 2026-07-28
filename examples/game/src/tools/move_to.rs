@@ -45,6 +45,15 @@ fn system(mut calls: MessageMutator<ToolCall<MoveTo>>, mut character_query: Quer
     for call in calls.read() {
         let mut character = character_query.get_mut(call.entity).unwrap();
 
+        if character.is_dead {
+            call.respond(Output {
+                is_success: false,
+                err_msg: Some("Dead characters cannot move".to_string()),
+            })
+            .unwrap();
+            continue;
+        }
+
         if call.args.coordinate.x <= -10.0 || call.args.coordinate.x >= 10.0 {
             call.respond(Output {
                 is_success: false,

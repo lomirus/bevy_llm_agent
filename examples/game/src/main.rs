@@ -15,12 +15,13 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
     render::render_resource::{TextureDimension, TextureFormat, TextureUsages},
-    ui::{Selected, widget::ViewportNode},
-    ui_widgets::ValueChange,
+    ui::{InteractionDisabled, Selected, widget::ViewportNode},
+    ui_widgets::{Activate, ValueChange},
 };
 use bevy_llm_agent::{
     AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin,
     agent::{Agent, Thinking},
+    messages::user_message::UserMessage,
     tool::AgentTools,
 };
 use rand::random_range;
@@ -35,6 +36,8 @@ const MAP_SIZE_M: f32 = 20.0;
 const CHARACTER_RADIUS_M: f32 = 0.5;
 /// Render layer for the map camera and world entities (UI stays on layer 0).
 const MAP_RENDER_LAYER: usize = 1;
+const CONTINUE_ACTION_PROMPT: &str =
+    "Take your next action now. You must call tools to act.";
 
 #[derive(Component, JsonSchema, Serialize, Clone, Default)]
 struct Character {
@@ -50,6 +53,8 @@ struct Character {
     coordinate: Coordinate,
     /// Coordinate of the moving target
     moving_target: Option<Coordinate>,
+    /// Whether the character has been eliminated.
+    is_dead: bool,
 }
 
 #[derive(JsonSchema, Serialize, Deserialize, Clone, Default)]
@@ -78,6 +83,22 @@ impl Coordinate {
 #[derive(Resource)]
 struct ElapsedTime(f32);
 
+/// World clock only advances in [`GamePhase::Moving`].
+#[derive(Resource, Clone, PartialEq, Eq, Default)]
+enum GamePhase {
+    /// Waiting for the player to click Continue Dialogue.
+    #[default]
+    AwaitingContinue,
+    /// Idle characters were prompted and must set a `moving_target` via MoveTo.
+    AwaitingMoves,
+    /// Targets are set; coordinates advance with real time.
+    Moving,
+}
+
+/// Characters prompted this round that still need a successful MoveTo.
+#[derive(Resource, Default)]
+struct AwaitingMoveTargets(Vec<Entity>);
+
 #[derive(Resource, Default)]
 struct SelectedCharacter(Option<Entity>);
 
@@ -99,6 +120,9 @@ struct MapViewport;
 
 #[derive(Component, Clone, Default)]
 struct MapCamera;
+
+#[derive(Component, Clone, Default)]
+struct ContinueDialogueButton;
 
 fn character_scene(character: Character) -> impl Scene {
     let transform = Transform::from_xyz(character.coordinate.x, character.coordinate.y, 0.0);
@@ -139,7 +163,7 @@ fn map_panel() -> impl Scene {
     }
 }
 
-fn character_detail_values(character: &Character) -> [String; 5] {
+fn character_detail_values(character: &Character) -> [String; 6] {
     [
         character.id.to_string(),
         character.combat_power.to_string(),
@@ -151,6 +175,11 @@ fn character_detail_values(character: &Character) -> [String; 5] {
         match &character.moving_target {
             Some(t) => format!("({:.1}, {:.1})", t.x, t.y),
             None => "None".into(),
+        },
+        if character.is_dead {
+            "Yes".into()
+        } else {
+            "No".into()
         },
     ]
 }
@@ -199,6 +228,7 @@ fn character_detail_panel() -> impl Scene {
                     ({detail_row("Moving Speed", String::new())}),
                     ({detail_row("Coordinate", String::new())}),
                     ({detail_row("Moving Target", String::new())}),
+                    ({detail_row("Dead", String::new())}),
                 ]
             )
         ]
@@ -290,6 +320,7 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             moving_speed: random_range::<f32, _>(0.5..2.0),
             coordinate: Coordinate::random(),
             moving_target: None,
+            is_dead: false,
         };
         let entity = commands
             .spawn_scene(character_scene(character.clone()))
@@ -404,6 +435,8 @@ fn game_ui(characters: &[(Entity, Character)]) -> impl Scene {
                                     }
                                     @variant: ButtonVariant::Primary,
                                 }
+                                ContinueDialogueButton
+                                on(on_continue_dialogue)
                             ),
                         ]
                     ),
@@ -455,6 +488,33 @@ fn on_character_map_click(
     apply_character_selection(click.entity, &mut selected, &items, &mut commands);
 }
 
+fn on_continue_dialogue(
+    _activate: On<Activate>,
+    mut phase: ResMut<GamePhase>,
+    mut awaiting: ResMut<AwaitingMoveTargets>,
+    characters: Query<(Entity, &Character)>,
+    mut sender: MessageWriter<UserMessage>,
+) {
+    if *phase != GamePhase::AwaitingContinue {
+        return;
+    }
+
+    let mut idle: Vec<_> = characters
+        .iter()
+        .filter(|(_, character)| !character.is_dead && character.moving_target.is_none())
+        .collect();
+    if idle.is_empty() {
+        return;
+    }
+    idle.sort_by_key(|(_, character)| character.id);
+
+    awaiting.0 = idle.iter().map(|(entity, _)| *entity).collect();
+    for (entity, _) in &idle {
+        sender.write(UserMessage::new(*entity, CONTINUE_ACTION_PROMPT));
+    }
+    *phase = GamePhase::AwaitingMoves;
+}
+
 fn select_strongest_character(
     mut selected: ResMut<SelectedCharacter>,
     characters: Query<(Entity, &Character)>,
@@ -473,19 +533,21 @@ fn select_strongest_character(
 
 fn update_character_detail(
     selected: Res<SelectedCharacter>,
-    characters: Query<&Character>,
+    characters: Query<Ref<Character>>,
     body: Single<&Children, With<CharacterDetailBody>>,
     rows: Query<&Children>,
     mut texts: Query<&mut Text>,
 ) {
-    if !selected.is_changed() {
+    let Some(entity) = selected.0 else {
+        return;
+    };
+    let Ok(character) = characters.get(entity) else {
+        return;
+    };
+    if !selected.is_changed() && !character.is_changed() {
         return;
     }
-    let values = selected
-        .0
-        .and_then(|entity| characters.get(entity).ok())
-        .map(character_detail_values)
-        .unwrap_or_default();
+    let values = character_detail_values(&character);
     for (row, value) in body.iter().zip(values) {
         let Some(&value_entity) = rows.get(row).ok().and_then(|c| c.get(1)) else {
             continue;
@@ -502,15 +564,21 @@ fn update_character_sprites(
         Entity,
         Ref<Character>,
         &mut Transform,
+        &mut Visibility,
         &MeshMaterial2d<ColorMaterial>,
     )>,
     mut materials: ResMut<Assets<ColorMaterial>>,
 ) {
     let selection_changed = selected.is_changed();
-    for (entity, character, mut transform, material) in &mut characters {
+    for (entity, character, mut transform, mut visibility, material) in &mut characters {
         if character.is_changed() {
             transform.translation.x = character.coordinate.x;
             transform.translation.y = character.coordinate.y;
+            *visibility = if character.is_dead {
+                Visibility::Hidden
+            } else {
+                Visibility::Visible
+            };
         }
         if selection_changed {
             if let Some(mut material) = materials.get_mut(&material.0) {
@@ -524,9 +592,83 @@ fn update_character_sprites(
     }
 }
 
+fn check_awaiting_moves(
+    mut phase: ResMut<GamePhase>,
+    mut awaiting: ResMut<AwaitingMoveTargets>,
+    characters: Query<&Character>,
+) {
+    if *phase != GamePhase::AwaitingMoves {
+        return;
+    }
+    let ready = awaiting.0.iter().all(|&entity| {
+        let character = characters.get(entity).unwrap();
+        character.is_dead || character.moving_target.is_some()
+    });
+    if ready {
+        awaiting.0.clear();
+        *phase = GamePhase::Moving;
+    }
+}
+
+fn advance_world(
+    time: Res<Time>,
+    mut phase: ResMut<GamePhase>,
+    mut elapsed: ResMut<ElapsedTime>,
+    mut characters: Query<&mut Character>,
+) {
+    if *phase != GamePhase::Moving {
+        return;
+    }
+
+    let dt = time.delta_secs();
+    elapsed.0 += dt;
+
+    let mut anyone_arrived = false;
+    for mut character in &mut characters {
+        if character.is_dead {
+            continue;
+        }
+        let target = character.moving_target.clone().unwrap();
+        let dist = character.coordinate.dist(&target);
+        let step = character.moving_speed * dt;
+        if step >= dist {
+            character.coordinate = target;
+            character.moving_target = None;
+            anyone_arrived = true;
+        } else {
+            let t = step / dist;
+            character.coordinate.x += (target.x - character.coordinate.x) * t;
+            character.coordinate.y += (target.y - character.coordinate.y) * t;
+        }
+    }
+
+    if anyone_arrived {
+        *phase = GamePhase::AwaitingContinue;
+    }
+}
+
+fn sync_continue_button(
+    phase: Res<GamePhase>,
+    button: Single<(Entity, Has<InteractionDisabled>), With<ContinueDialogueButton>>,
+    mut commands: Commands,
+) {
+    if !phase.is_changed() {
+        return;
+    }
+    let (entity, is_disabled) = *button;
+    let should_disable = *phase != GamePhase::AwaitingContinue;
+    if should_disable && !is_disabled {
+        commands.entity(entity).insert(InteractionDisabled);
+    } else if !should_disable && is_disabled {
+        commands.entity(entity).remove::<InteractionDisabled>();
+    }
+}
+
 fn main() {
     App::new()
         .init_resource::<SelectedCharacter>()
+        .init_resource::<GamePhase>()
+        .init_resource::<AwaitingMoveTargets>()
         .insert_resource(ElapsedTime(0.0))
         .insert_resource(UiTheme(create_dark_theme()))
         .add_plugins((
@@ -551,6 +693,15 @@ fn main() {
             )
                 .chain(),
         )
-        .add_systems(Update, (update_character_detail, update_character_sprites))
+        .add_systems(
+            Update,
+            (
+                update_character_detail,
+                update_character_sprites,
+                check_awaiting_moves,
+                advance_world,
+                sync_continue_button,
+            ),
+        )
         .run();
 }
