@@ -115,6 +115,7 @@ fn character_scene(character: Character) -> impl Scene {
         MeshMaterial2d::<ColorMaterial>(asset_value(palette::LIGHT_GRAY_1))
         template_value(transform)
         template_value(render_layers)
+        on(on_character_map_click)
     }
 }
 
@@ -444,6 +445,18 @@ fn on_character_list_select(
     apply_character_selection(*character, &mut selected, &items, &mut commands);
 }
 
+fn on_character_map_click(
+    click: On<Pointer<Click>>,
+    items: Query<(Entity, &CharacterListItem, Has<Selected>)>,
+    mut selected: ResMut<SelectedCharacter>,
+    mut commands: Commands,
+) {
+    if click.button != PointerButton::Primary {
+        return;
+    }
+    apply_character_selection(click.entity, &mut selected, &items, &mut commands);
+}
+
 fn select_strongest_character(
     mut selected: ResMut<SelectedCharacter>,
     characters: Query<(Entity, &Character)>,
@@ -519,6 +532,7 @@ fn main() {
                 ..default()
             }),
             FeathersPlugins,
+            MeshPickingPlugin,
             LlmAgentPlugin,
         ))
         .add_agent_tool::<GetCurrentInfo>()
