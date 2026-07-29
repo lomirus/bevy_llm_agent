@@ -6,7 +6,9 @@ use bevy::{
     feathers::{
         FeathersPlugins,
         containers::{subpane, subpane_body, subpane_header},
-        controls::{ButtonVariant, FeathersButton, FeathersListRow, FeathersListView},
+        controls::{
+            ButtonVariant, FeathersButton, FeathersListRow, FeathersListView, FeathersScrollbar,
+        },
         dark_theme::create_dark_theme,
         palette,
         theme::{ThemeBackgroundColor, ThemeBorderColor, ThemedText, UiTheme},
@@ -15,13 +17,16 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
     render::render_resource::{TextureDimension, TextureFormat, TextureUsages},
-    ui::{InteractionDisabled, Selected, widget::ViewportNode},
-    ui_widgets::{Activate, ValueChange},
+    ui::{InteractionDisabled, Overflow, Selected, widget::ViewportNode},
+    ui_widgets::{Activate, ControlOrientation, ScrollArea, ValueChange},
 };
 use bevy_llm_agent::{
     AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin,
-    agent::{Agent, Thinking},
-    messages::user_message::UserMessage,
+    agent::{Agent, DialogMessage, Thinking},
+    messages::{
+        agent_message::{AgentMessage, AgentMessageDelta},
+        user_message::UserMessage,
+    },
     tool::AgentTools,
 };
 use rand::random_range;
@@ -89,15 +94,16 @@ enum GamePhase {
     /// Waiting for the player to click Continue Dialogue.
     #[default]
     AwaitingContinue,
-    /// Idle characters were prompted and must set a `moving_target` via MoveTo.
+    /// Idle characters were prompted; wait until every character has a move target
+    /// (or is dead) and all prompted agent outputs have finished.
     AwaitingMoves,
     /// Targets are set; coordinates advance with real time.
     Moving,
 }
 
-/// Characters prompted this round that still need a successful MoveTo.
+/// Characters prompted this round whose agent output has not finished yet.
 #[derive(Resource, Default)]
-struct AwaitingMoveTargets(Vec<Entity>);
+struct AwaitingAgentOutputs(Vec<Entity>);
 
 #[derive(Resource, Default)]
 struct SelectedCharacter(Option<Entity>);
@@ -124,6 +130,31 @@ struct MapCamera;
 #[derive(Component, Clone, Default)]
 struct ContinueDialogueButton;
 
+#[derive(Component, Clone, Default)]
+struct DialogueHeader;
+
+#[derive(Component, Clone, Default)]
+struct DialogueMessageList;
+
+#[derive(Component, Clone, Default)]
+struct DialogueMessageTitle;
+
+#[derive(Component, Clone, Default)]
+struct DialogueBody;
+
+#[derive(Component, Clone, Default)]
+struct DialogueMessageIndex(usize);
+
+#[derive(Component, Clone, Default)]
+struct DialogueScrollArea;
+
+/// Which character's dialog is currently mirrored into the message list.
+#[derive(Resource, Default)]
+struct DialogueView {
+    character: Option<Entity>,
+    message_count: usize,
+}
+
 fn character_scene(character: Character) -> impl Scene {
     let transform = Transform::from_xyz(character.coordinate.x, character.coordinate.y, 0.0);
     let render_layers = RenderLayers::layer(MAP_RENDER_LAYER);
@@ -148,6 +179,7 @@ fn map_panel() -> impl Scene {
         Node {
             height: percent(100),
             aspect_ratio: {Some(1.0)},
+            flex_shrink: 0.0,
             border: UiRect::all(px(1)),
             padding: px(8),
         }
@@ -279,6 +311,153 @@ fn character_list_panel(rows: impl SceneList) -> impl Scene {
     }
 }
 
+fn dialog_entries(dialog: &[DialogMessage]) -> Vec<(&'static str, String)> {
+    let mut entries = Vec::new();
+    let mut tool_calls = Vec::new();
+    for message in dialog {
+        match message {
+            DialogMessage::System { content } => {
+                entries.push(("System", content.clone()));
+            }
+            DialogMessage::User { content } => {
+                entries.push(("User", content.clone()));
+            }
+            DialogMessage::Assistant {
+                content,
+                reasoning_content,
+                tool_calls: calls,
+            } => {
+                if !reasoning_content.is_empty() {
+                    entries.push(("Reasoning", reasoning_content.clone()));
+                }
+                if !content.is_empty() {
+                    entries.push(("Assistant", content.clone()));
+                }
+                tool_calls.extend(calls.iter());
+            }
+            DialogMessage::Tool { id, result } => {
+                let call = tool_calls
+                    .iter()
+                    .find(|call| call.id == *id)
+                    .unwrap();
+                let mut body = format!("{}({})", call.name, call.arguments);
+                if !result.is_empty() {
+                    body.push_str("\n\n");
+                    body.push_str(result);
+                }
+                entries.push(("Tool", body));
+            }
+        }
+    }
+    entries
+}
+
+fn message_subpane(title: &str, body: &str, index: usize) -> impl Scene {
+    let title = title.to_string();
+    let body = body.to_string();
+    let index = DialogueMessageIndex(index);
+    bsn! {
+        subpane()
+        Node {
+            width: percent(100),
+        }
+        Children [
+            subpane_header() Children [
+                (
+                    Text({title})
+                    ThemedText
+                    DialogueMessageTitle
+                    template_value(index.clone())
+                )
+            ],
+            (
+                subpane_body()
+                Children [(
+                    Node {
+                        width: percent(100),
+                    }
+                    Text({body})
+                    ThemedText
+                    DialogueBody
+                    template_value(index)
+                    TextLayout::new(Justify::Left, LineBreak::AnyCharacter)
+                    TextFont {
+                        font_size: FontSize::Px(UI_FONT_SIZE),
+                    }
+                )]
+            )
+        ]
+    }
+}
+
+fn dialogue_panel() -> impl Scene {
+    bsn! {
+        subpane()
+        Node {
+            flex_grow: 1.0,
+            min_height: px(0),
+        }
+        Children [
+            subpane_header() Children [(
+                Text("Player -")
+                ThemedText
+                DialogueHeader
+            )],
+            subpane_body()
+            Node {
+                flex_grow: 1.0,
+                min_height: px(0),
+            }
+            Children [(
+                Node {
+                    flex_grow: 1.0,
+                    min_height: px(0),
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Column,
+                    align_items: AlignItems::Stretch,
+                    padding: UiRect {
+                        right: px(10),
+                    },
+                }
+                Children [
+                    (
+                        #dialogue_scroll
+                        Node {
+                            flex_grow: 1.0,
+                            min_height: px(0),
+                            overflow: Overflow::scroll_y(),
+                        }
+                        ScrollArea
+                        DialogueScrollArea
+                        Children [(
+                            Node {
+                                width: percent(100),
+                                display: Display::Flex,
+                                flex_direction: FlexDirection::Column,
+                                row_gap: px(8),
+                            }
+                            DialogueMessageList
+                        )]
+                    ),
+                    (
+                        Node {
+                            position_type: PositionType::Absolute,
+                            right: px(0),
+                            top: px(0),
+                            bottom: px(0),
+                            width: px(6),
+                        }
+                        @FeathersScrollbar {
+                            @target: #dialogue_scroll,
+                            @orientation: {ControlOrientation::Vertical}
+                        }
+                    )
+                ]
+            )]
+        ]
+    }
+}
+
 fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     // These camera components are not bsn-friendly (missing Clone/Default/FromTemplate).
     commands.spawn((Camera2d, IsDefaultUiCamera));
@@ -380,26 +559,13 @@ fn game_ui(characters: &[(Entity, Character)]) -> impl Scene {
             (
                 Node {
                     flex_grow: 1.0,
+                    min_width: px(0),
                     display: Display::Flex,
                     flex_direction: FlexDirection::Column,
                     row_gap: px(12),
                 }
                 Children [
-                    // Current dialogue content
-                    (
-                        Node {
-                            flex_grow: 1.0,
-                            border: UiRect::all(px(1)),
-                            padding: px(12),
-                        }
-                        ThemeBackgroundColor(tokens::PANE_BODY_BG)
-                        ThemeBorderColor(tokens::PANE_HEADER_BORDER)
-                        Children [(
-                            Text("Dialogue")
-                            ThemedText
-                        )]
-                    ),
-                    // Dialogue navigation controls
+                    ({dialogue_panel()}),
                     (
                         Node {
                             display: Display::Flex,
@@ -408,25 +574,6 @@ fn game_ui(characters: &[(Entity, Character)]) -> impl Scene {
                             column_gap: px(8),
                         }
                         Children [
-                            // Previous dialogue message
-                            (
-                                @FeathersButton {
-                                    @caption: bsn! {
-                                        Text("Previous")
-                                        ThemedText
-                                    }
-                                }
-                            ),
-                            // Next dialogue message
-                            (
-                                @FeathersButton {
-                                    @caption: bsn! {
-                                        Text("Next")
-                                        ThemedText
-                                    }
-                                }
-                            ),
-                            // Continue dialogue
                             (
                                 @FeathersButton {
                                     @caption: bsn! {
@@ -491,7 +638,7 @@ fn on_character_map_click(
 fn on_continue_dialogue(
     _activate: On<Activate>,
     mut phase: ResMut<GamePhase>,
-    mut awaiting: ResMut<AwaitingMoveTargets>,
+    mut awaiting_outputs: ResMut<AwaitingAgentOutputs>,
     characters: Query<(Entity, &Character)>,
     mut sender: MessageWriter<UserMessage>,
 ) {
@@ -508,11 +655,97 @@ fn on_continue_dialogue(
     }
     idle.sort_by_key(|(_, character)| character.id);
 
-    awaiting.0 = idle.iter().map(|(entity, _)| *entity).collect();
+    awaiting_outputs.0 = idle.iter().map(|(entity, _)| *entity).collect();
     for (entity, _) in &idle {
         sender.write(UserMessage::new(*entity, CONTINUE_ACTION_PROMPT));
     }
     *phase = GamePhase::AwaitingMoves;
+}
+
+fn rebuild_dialogue_messages(
+    commands: &mut Commands,
+    list: Entity,
+    dialog: &[DialogMessage],
+) {
+    commands.entity(list).despawn_children();
+    for (index, (title, body)) in dialog_entries(dialog).into_iter().enumerate() {
+        let message_entity = commands
+            .spawn_scene(message_subpane(title, &body, index))
+            .id();
+        commands.entity(list).add_child(message_entity);
+    }
+}
+
+fn update_dialogue_panel(
+    selected: Res<SelectedCharacter>,
+    mut view: ResMut<DialogueView>,
+    agents: Query<(Ref<Agent>, &Character)>,
+    mut header: Single<
+        &mut Text,
+        (
+            With<DialogueHeader>,
+            Without<DialogueMessageTitle>,
+            Without<DialogueBody>,
+        ),
+    >,
+    list: Single<Entity, With<DialogueMessageList>>,
+    mut titles: Query<
+        (&DialogueMessageIndex, &mut Text),
+        (
+            With<DialogueMessageTitle>,
+            Without<DialogueHeader>,
+            Without<DialogueBody>,
+        ),
+    >,
+    mut bodies: Query<
+        (&DialogueMessageIndex, &mut Text),
+        (
+            With<DialogueBody>,
+            Without<DialogueHeader>,
+            Without<DialogueMessageTitle>,
+        ),
+    >,
+    mut scroll: Single<&mut ScrollPosition, With<DialogueScrollArea>>,
+    mut commands: Commands,
+) {
+    let Some(entity) = selected.0 else {
+        if view.character.is_some() || selected.is_changed() {
+            header.0 = "Player -".into();
+            rebuild_dialogue_messages(&mut commands, *list, &[]);
+            **scroll = ScrollPosition::DEFAULT;
+            *view = DialogueView::default();
+        }
+        return;
+    };
+    let Ok((agent, character)) = agents.get(entity) else {
+        return;
+    };
+
+    let selection_changed = view.character != Some(entity);
+    let entries = dialog_entries(&agent.dialog);
+    let count_changed = view.message_count != entries.len();
+    if !selection_changed && !count_changed && !agent.is_changed() && !selected.is_changed() {
+        return;
+    }
+
+    header.0 = format!("Player {}", character.id);
+
+    if selection_changed || count_changed {
+        rebuild_dialogue_messages(&mut commands, *list, &agent.dialog);
+        if selection_changed {
+            **scroll = ScrollPosition::DEFAULT;
+        }
+        view.character = Some(entity);
+        view.message_count = entries.len();
+        return;
+    }
+
+    for (DialogueMessageIndex(index), mut text) in &mut titles {
+        text.0 = entries[*index].0.into();
+    }
+    for (DialogueMessageIndex(index), mut text) in &mut bodies {
+        text.0 = entries[*index].1.clone();
+    }
 }
 
 fn select_strongest_character(
@@ -592,20 +825,37 @@ fn update_character_sprites(
     }
 }
 
+fn track_awaiting_agent_outputs(
+    mut awaiting_outputs: ResMut<AwaitingAgentOutputs>,
+    mut messages: MessageReader<AgentMessage>,
+    mut app_exit: MessageWriter<AppExit>,
+) {
+    for AgentMessage { entity, delta } in messages.read() {
+        match delta {
+            Ok(AgentMessageDelta::Finish) => {
+                awaiting_outputs.0.retain(|&e| e != *entity);
+            }
+            Ok(_) => {}
+            Err(err) => {
+                error!("agent {entity} failed: {err:?}");
+                app_exit.write(AppExit::error());
+            }
+        }
+    }
+}
+
 fn check_awaiting_moves(
     mut phase: ResMut<GamePhase>,
-    mut awaiting: ResMut<AwaitingMoveTargets>,
+    awaiting_outputs: Res<AwaitingAgentOutputs>,
     characters: Query<&Character>,
 ) {
     if *phase != GamePhase::AwaitingMoves {
         return;
     }
-    let ready = awaiting.0.iter().all(|&entity| {
-        let character = characters.get(entity).unwrap();
-        character.is_dead || character.moving_target.is_some()
-    });
-    if ready {
-        awaiting.0.clear();
+    let targets_ready = characters
+        .iter()
+        .all(|character| character.is_dead || character.moving_target.is_some());
+    if targets_ready && awaiting_outputs.0.is_empty() {
         *phase = GamePhase::Moving;
     }
 }
@@ -667,8 +917,9 @@ fn sync_continue_button(
 fn main() {
     App::new()
         .init_resource::<SelectedCharacter>()
+        .init_resource::<DialogueView>()
         .init_resource::<GamePhase>()
-        .init_resource::<AwaitingMoveTargets>()
+        .init_resource::<AwaitingAgentOutputs>()
         .insert_resource(ElapsedTime(0.0))
         .insert_resource(UiTheme(create_dark_theme()))
         .add_plugins((
@@ -696,9 +947,14 @@ fn main() {
         .add_systems(
             Update,
             (
+                update_dialogue_panel,
                 update_character_detail,
                 update_character_sprites,
-                check_awaiting_moves,
+                (
+                    track_awaiting_agent_outputs,
+                    check_awaiting_moves,
+                )
+                    .chain(),
                 advance_world,
                 sync_continue_button,
             ),
