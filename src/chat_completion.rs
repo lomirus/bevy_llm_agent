@@ -15,10 +15,13 @@ pub(crate) struct Request {
 
 #[derive(Serialize)]
 pub(crate) struct Message {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) reasoning_content: Option<String>,
     pub(crate) content: String,
     pub(crate) role: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) tool_call_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) tool_calls: Option<Vec<ToolCall>>,
 }
 
@@ -45,22 +48,31 @@ impl From<DialogMessage> for Message {
                 tool_calls,
             } => Self {
                 role: "assistant".to_owned(),
-                reasoning_content: Some(reasoning_content),
+                reasoning_content: if reasoning_content.is_empty() {
+                    None
+                } else {
+                    Some(reasoning_content)
+                },
                 content,
                 tool_call_id: None,
-                tool_calls: Some(
-                    tool_calls
-                        .into_iter()
-                        .map(|tool_call| ToolCall {
-                            id: Some(tool_call.id),
-                            r#type: Some("function".to_owned()),
-                            function: ToolCallFunction {
-                                name: Some(tool_call.name),
-                                arguments: tool_call.arguments,
-                            },
-                        })
-                        .collect(),
-                ),
+                // API rejects `"tool_calls": []`; omit the field when there are none.
+                tool_calls: if tool_calls.is_empty() {
+                    None
+                } else {
+                    Some(
+                        tool_calls
+                            .into_iter()
+                            .map(|tool_call| ToolCall {
+                                id: Some(tool_call.id),
+                                r#type: Some("function".to_owned()),
+                                function: ToolCallFunction {
+                                    name: Some(tool_call.name),
+                                    arguments: tool_call.arguments,
+                                },
+                            })
+                            .collect(),
+                    )
+                },
             },
             DialogMessage::Tool { id, result } => Self {
                 role: "tool".to_owned(),
