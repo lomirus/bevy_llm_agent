@@ -3,7 +3,7 @@ use bevy::prelude::*;
 #[derive(Message)]
 pub struct AgentMessage {
     pub entity: Entity,
-    pub delta: AgentMessageDelta,
+    pub delta: Result<AgentMessageDelta, AgentMessageError>,
 }
 
 #[derive(Clone)]
@@ -19,13 +19,13 @@ pub enum AgentMessageDelta {
         content: String,
         tool_call_id: String,
     },
-    Finish(FinishReason),
+    Finish,
 }
 
-#[derive(Clone)]
-pub enum FinishReason {
-    Stop,
+#[derive(Clone, Debug)]
+pub enum AgentMessageError {
     Length,
     ContentFilter,
     InsufficientSystemResource,
+    Other(String),
 }

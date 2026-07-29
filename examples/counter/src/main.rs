@@ -10,7 +10,7 @@ use bevy_llm_agent::{
     AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin,
     agent::{Agent, Thinking},
     messages::{
-        agent_message::{AgentMessage, AgentMessageDelta},
+        agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
         user_message::UserMessage,
     },
     tool::AgentTools,
@@ -52,7 +52,20 @@ fn print_text(
 ) {
     for agent_message in agent_messages.read() {
         use AgentMessageDelta::*;
-        match &agent_message.delta {
+        let delta = match &agent_message.delta {
+            Ok(delta) => delta,
+            Err(AgentMessageError::Other(msg)) => {
+                error!("{msg}");
+                app_exit.write(AppExit::error());
+                continue;
+            }
+            Err(err) => {
+                error!("{err:?}");
+                app_exit.write(AppExit::error());
+                continue;
+            }
+        };
+        match delta {
             Content(text) => {
                 print!("{text}");
                 std::io::stdout().flush().unwrap();
@@ -93,7 +106,7 @@ fn print_text(
                 }
                 println!("[TOOL RESULT] {} => {}", tool_call_id, content);
             }
-            Finish(_) => {
+            Finish => {
                 app_exit.write(if counter.0 > 10 {
                     AppExit::Success
                 } else {

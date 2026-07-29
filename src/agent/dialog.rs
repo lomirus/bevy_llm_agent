@@ -74,6 +74,6 @@ pub(crate) fn apply_delta(dialog: &mut Vec<DialogMessage>, delta: &AgentMessageD
                 result: content.clone(),
             });
         }
-        AgentMessageDelta::Finish(_) => unreachable!(),
+        AgentMessageDelta::Finish => unreachable!(),
     }
 }

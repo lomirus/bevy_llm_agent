@@ -18,8 +18,8 @@ pub(crate) fn write_agent_message(
             let receiver = receiver.lock().unwrap();
             while let Ok(delta) = receiver.try_recv() {
                 match &delta {
-                    AgentMessageDelta::Finish(_) => finished = true,
-                    _ => agent::apply_delta(dialog, &delta),
+                    Ok(AgentMessageDelta::Finish) | Err(_) => finished = true,
+                    Ok(delta) => agent::apply_delta(dialog, delta),
                 }
                 writer.write(AgentMessage { entity, delta });
             }

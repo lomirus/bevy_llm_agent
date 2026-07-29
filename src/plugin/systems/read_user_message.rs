@@ -2,7 +2,7 @@ use crate::{
     agent::{self, Agent, AgentStatus, DialogMessage, Thinking},
     chat_completion::{self, ResponseFormat, ToolFunction},
     messages::{
-        agent_message::{AgentMessageDelta, FinishReason},
+        agent_message::{AgentMessageDelta, AgentMessageError},
         user_message::UserMessage,
     },
     plugin::RawToolCallSender,
@@ -15,24 +15,27 @@ use std::{
     thread,
 };
 
+type DeltaResult = Result<AgentMessageDelta, AgentMessageError>;
+
 enum StreamOutcome {
-    Finished(FinishReason),
+    Finished,
+    Error(AgentMessageError),
     ToolCalls,
 }
 
 fn emit_delta(
     dialog: &mut Vec<DialogMessage>,
-    tx: &mpsc::Sender<AgentMessageDelta>,
+    tx: &mpsc::Sender<DeltaResult>,
     delta: AgentMessageDelta,
 ) {
     agent::apply_delta(dialog, &delta);
-    tx.send(delta).unwrap();
+    tx.send(Ok(delta)).unwrap();
 }
 
 fn consume_sse_stream(
     reader: impl BufRead,
     dialog: &mut Vec<DialogMessage>,
-    tx: &mpsc::Sender<AgentMessageDelta>,
+    tx: &mpsc::Sender<DeltaResult>,
 ) -> StreamOutcome {
     for line in reader.lines().map_while(Result::ok) {
         let Some(data) = line.strip_prefix("data: ") else {
@@ -47,11 +50,11 @@ fn consume_sse_stream(
         if let Some(reason) = &choice.finish_reason {
             use chat_completion::FinishReason::*;
             return match reason {
-                Stop => StreamOutcome::Finished(FinishReason::Stop),
-                Length => StreamOutcome::Finished(FinishReason::Length),
-                ContentFilter => StreamOutcome::Finished(FinishReason::ContentFilter),
+                Stop => StreamOutcome::Finished,
+                Length => StreamOutcome::Error(AgentMessageError::Length),
+                ContentFilter => StreamOutcome::Error(AgentMessageError::ContentFilter),
                 InsufficientSystemResource => {
-                    StreamOutcome::Finished(FinishReason::InsufficientSystemResource)
+                    StreamOutcome::Error(AgentMessageError::InsufficientSystemResource)
                 }
                 ToolCalls => StreamOutcome::ToolCalls,
             };
@@ -95,7 +98,7 @@ fn run_agent_loop(
     tools: Vec<Tool>,
     api_key: String,
     raw_tool_invocation_sender: crossbeam::channel::Sender<RawToolCall>,
-    tx: mpsc::Sender<AgentMessageDelta>,
+    tx: mpsc::Sender<DeltaResult>,
     entity: Entity,
 ) {
     loop {
@@ -131,17 +134,43 @@ fn run_agent_loop(
                 .collect(),
         };
 
-        let mut resp = ureq::post("https://api.deepseek.com/chat/completions")
+        let mut resp = match ureq::post("https://api.deepseek.com/chat/completions")
+            .config()
+            .http_status_as_error(false)
+            .build()
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", api_key))
             .send_json(body)
-            .unwrap();
+        {
+            Ok(resp) => resp,
+            Err(err) => {
+                tx.send(Err(AgentMessageError::Other(err.to_string())))
+                    .unwrap();
+                return;
+            }
+        };
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.body_mut().read_to_string().unwrap_or_default();
+            let msg = if body.is_empty() {
+                format!("http status: {status}")
+            } else {
+                body
+            };
+            tx.send(Err(AgentMessageError::Other(msg))).unwrap();
+            return;
+        }
 
         let reader = BufReader::new(resp.body_mut().as_reader());
 
         match consume_sse_stream(reader, dialog, &tx) {
-            StreamOutcome::Finished(reason) => {
-                tx.send(AgentMessageDelta::Finish(reason)).unwrap();
+            StreamOutcome::Finished => {
+                tx.send(Ok(AgentMessageDelta::Finish)).unwrap();
+                return;
+            }
+            StreamOutcome::Error(err) => {
+                tx.send(Err(err)).unwrap();
                 return;
             }
             StreamOutcome::ToolCalls => {
@@ -200,7 +229,7 @@ pub(crate) fn read_user_message(
             content: prompt.to_owned(),
         });
 
-        let (tx, rx) = mpsc::channel::<AgentMessageDelta>();
+        let (tx, rx) = mpsc::channel::<DeltaResult>();
         if let AgentStatus::Streaming(_) = *agent_status {
             unreachable!();
         }

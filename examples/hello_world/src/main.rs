@@ -23,7 +23,7 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
 fn update_text(mut texts: Query<&mut Text>, mut agent_messages: MessageReader<AgentMessage>) {
     for AgentMessage { entity, delta } in agent_messages.read() {
         let mut text = texts.get_mut(*entity).unwrap();
-        if let AgentMessageDelta::Content(content) = delta {
+        if let Ok(AgentMessageDelta::Content(content)) = delta {
             text.push_str(content)
         }
     }
