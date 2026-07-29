@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::game::{Character, Coordinate};
 
-/// Move to a specified location. After invoking this tool, the character sets the location as the movement target and gradually moves towards it over time.
+/// Set a movement destination. After this turn ends, you gradually move there over time and will not get another turn until you arrive. Other characters can still act while you move, so you may be devourable mid-path.
 ///
-/// - Requirement: Distance between your current position and target position >= 1. The target's horizontal and vertical coordinates must be within (-10, 10).
-/// - Note: Subsequent tool calls can only be issued after the movement is completed. During the movement, the character is in an uncontrolled state. While moving, other characters can still act normally. Therefore, the character may be devoured by enemies during movement.
+/// - Requirements: you are alive; distance to target >= 1; target coordinates within (-10, 10) on both axes.
+/// - Note: other tools may still be called in the same turn after this succeeds. The "no further turns until arrival" rule applies after the turn finishes.
 #[derive(SceneComponent, JsonSchema, Clone, Default)]
 pub(crate) struct MoveTo;
 

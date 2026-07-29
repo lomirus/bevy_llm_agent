@@ -12,13 +12,13 @@ use bevy::{
 };
 use bevy_llm_agent::{
     DEEPSEEK_V4_FLASH,
-    agent::{Agent, Thinking},
+    agent::{Agent, DialogMessage, Thinking},
     tool::AgentTools,
 };
 use rand::random_range;
 
 use crate::{
-    game::{Character, Coordinate},
+    game::{Character, Coordinate, character_system_prompt},
     tools::{DevourCharacter, GetCurrentInfo, MoveTo},
 };
 
@@ -42,12 +42,19 @@ pub(crate) struct MapViewport;
 #[derive(Component, Clone, Default)]
 pub(crate) struct MapCamera;
 
+fn character_agent(id: u8) -> Agent {
+    let mut agent = Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off);
+    agent.dialog.push(DialogMessage::system(&character_system_prompt(id)));
+    agent
+}
+
 fn character_scene(character: Character) -> impl Scene {
+    let agent = character_agent(character.id);
     let transform = Transform::from_xyz(character.coordinate.x, character.coordinate.y, 0.0);
     let render_layers = RenderLayers::layer(MAP_RENDER_LAYER);
     bsn! {
         template_value(character)
-        Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off)
+        template_value(agent)
         AgentTools [
             @GetCurrentInfo,
             @MoveTo,

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::game::{Character, ElapsedTime};
 
 #[derive(SceneComponent, JsonSchema, Clone, Default)]
-/// Get current character and environment information.
+/// Get current information: yourself, all other living characters, and elapsed time (seconds).
 pub(crate) struct GetCurrentInfo;
 
 impl GetCurrentInfo {

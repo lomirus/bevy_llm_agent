@@ -17,6 +17,14 @@ pub enum DialogMessage {
     },
 }
 
+impl DialogMessage {
+    pub fn system(content: &str) -> Self {
+        Self::System {
+            content: content.to_owned(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct ToolCall {
     pub id: String,

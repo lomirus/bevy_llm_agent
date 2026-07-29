@@ -5,11 +5,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::game::Character;
 
-/// Devour the target character.
+/// Devour the target character by id.
 ///
-/// - Requirements: The character's combat power must be greater than the target's combat power, and the distance between the character and the target must be less than 1.
-/// - Success: The target is eliminated from the game. The character's new combat power becomes the sum of its original combat power and the target's original combat power.
-/// - Failure: None.
+/// - Requirements: you are alive; target exists, is alive, and is not yourself; your combat power >= target's; distance < 1.
+/// - Success: target is eliminated; your combat power becomes the sum of both.
 #[derive(SceneComponent, JsonSchema, Clone, Default)]
 pub(crate) struct DevourCharacter;
 

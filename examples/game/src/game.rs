@@ -7,7 +7,11 @@ use rand::random_range;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-const CONTINUE_ACTION_PROMPT: &str = "Take your next action now. You must call tools to act.";
+pub(crate) fn character_system_prompt(id: u8) -> String {
+    format!(include_str!("../prompts/system.md"), id = id)
+}
+
+pub(crate) const CONTINUE_ACTION_PROMPT: &str = include_str!("../prompts/continue_action.md");
 
 #[derive(Component, JsonSchema, Serialize, Clone, Default)]
 pub(crate) struct Character {
