@@ -3,7 +3,7 @@ use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Character, ElapsedTime};
+use crate::game::{Character, ElapsedTime};
 
 #[derive(SceneComponent, JsonSchema, Clone, Default)]
 /// Get current character and environment information.

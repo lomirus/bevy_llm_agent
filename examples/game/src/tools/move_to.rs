@@ -3,7 +3,7 @@ use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Character, Coordinate};
+use crate::game::{Character, Coordinate};
 
 /// Move to a specified location. After invoking this tool, the character sets the location as the movement target and gradually moves towards it over time.
 ///

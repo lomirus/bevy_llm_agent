@@ -3,7 +3,7 @@ use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::Character;
+use crate::game::Character;
 
 /// Devour the target character.
 ///
