@@ -22,6 +22,7 @@ pub(crate) struct Character {
     /// Moving speed.
     ///
     /// Unit: m/s.
+    #[serde(serialize_with = "serialize_round2")]
     pub(crate) moving_speed: f32,
     /// Current coordinate of the character
     pub(crate) coordinate: Coordinate,
@@ -31,12 +32,36 @@ pub(crate) struct Character {
     pub(crate) is_dead: bool,
 }
 
-#[derive(JsonSchema, Serialize, Deserialize, Clone, Default)]
+#[derive(JsonSchema, Deserialize, Clone, Default)]
 pub(crate) struct Coordinate {
     /// Unit: m
     pub(crate) x: f32,
     /// Unit: m
     pub(crate) y: f32,
+}
+
+impl Serialize for Coordinate {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::SerializeStruct;
+        let mut state = serializer.serialize_struct("Coordinate", 2)?;
+        state.serialize_field("x", &round2(self.x))?;
+        state.serialize_field("y", &round2(self.y))?;
+        state.end()
+    }
+}
+
+fn round2(v: f32) -> f32 {
+    (v * 100.0).round() / 100.0
+}
+
+fn serialize_round2<S>(v: &f32, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    serializer.serialize_f32(round2(*v))
 }
 
 impl Coordinate {
