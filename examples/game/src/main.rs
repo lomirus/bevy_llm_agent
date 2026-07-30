@@ -29,6 +29,7 @@ fn main() {
             FeathersPlugins,
             MeshPickingPlugin,
             LlmAgentPlugin,
+            ui::AutoScrollToBottomPlugin,
         ))
         .add_agent_tool::<GetCurrentInfo>()
         .add_agent_tool::<MoveTo>()

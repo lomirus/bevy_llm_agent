@@ -12,7 +12,7 @@ use bevy_llm_agent::agent::{Agent, DialogMessage};
 
 use crate::game::{Character, GamePhase, on_continue_dialogue};
 
-use super::{UI_FONT_SIZE, character::SelectedCharacter};
+use super::{UI_FONT_SIZE, auto_scroll::AutoScrollToBottom, character::SelectedCharacter};
 
 #[derive(Component, Clone, Default)]
 pub(crate) struct ContinueDialogueButton;
@@ -157,6 +157,7 @@ fn dialogue_panel() -> impl Scene {
                         }
                         ScrollArea
                         DialogueScrollArea
+                        AutoScrollToBottom
                         Children [(
                             Node {
                                 width: percent(100),
@@ -261,14 +262,12 @@ pub(crate) fn update_dialogue_panel(
             Without<DialogueMessageTitle>,
         ),
     >,
-    mut scroll: Single<&mut ScrollPosition, With<DialogueScrollArea>>,
     mut commands: Commands,
 ) {
     let Some(entity) = selected.0 else {
         if view.character.is_some() || selected.is_changed() {
             header.0 = "Player -".into();
             rebuild_dialogue_messages(&mut commands, *list, &[]);
-            **scroll = ScrollPosition::DEFAULT;
             *view = DialogueView::default();
         }
         return;
@@ -288,9 +287,6 @@ pub(crate) fn update_dialogue_panel(
 
     if selection_changed || count_changed {
         rebuild_dialogue_messages(&mut commands, *list, &agent.dialog);
-        if selection_changed {
-            **scroll = ScrollPosition::DEFAULT;
-        }
         view.character = Some(entity);
         view.message_count = entries.len();
         return;
