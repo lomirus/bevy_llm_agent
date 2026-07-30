@@ -14,6 +14,9 @@ use tools::{DevourCharacter, GetCurrentInfo, MoveTo};
 use ui::{DialogueView, SelectedCharacter};
 
 fn main() {
+    // See issue: https://github.com/bevyengine/bevy/issues/24094
+    const FILTER_ICU_PROVIDER: &str = "icu_provider::error=off";
+
     App::new()
         .init_resource::<SelectedCharacter>()
         .init_resource::<DialogueView>()
@@ -23,7 +26,7 @@ fn main() {
         .insert_resource(UiTheme(create_dark_theme()))
         .add_plugins((
             DefaultPlugins.set(LogPlugin {
-                filter: DEFAULT_FILTER.to_owned(),
+                filter: format!("{DEFAULT_FILTER},{FILTER_ICU_PROVIDER}"),
                 ..default()
             }),
             FeathersPlugins,
