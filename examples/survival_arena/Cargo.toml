@@ -1,0 +1,11 @@
+[package]
+name = "survival_arena"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bevy = { workspace = true, features = ["2d", "ui", "bevy_feathers"] }
+bevy-llm-agent = { path = "../../" }
+rand = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }

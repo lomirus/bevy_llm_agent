@@ -7,8 +7,13 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AssistantContent, LlmAgentPlugin, MultiTurnItem, ToolResultContent, UserContent, UserMessage,
-    agent::AgentBuilder, prelude::*,
+    AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin,
+    agent::{Agent, Thinking},
+    messages::{
+        agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
+        user_message::UserMessage,
+    },
+    tool::AgentTools,
 };
 use tools::{AddToCounter, GetCounter};
 
@@ -16,46 +21,92 @@ use tools::{AddToCounter, GetCounter};
 struct Counter(usize);
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let agent = AgentBuilder::new(DEEPSEEK_V4_FLASH)
-        .tool::<AddToCounter>()
-        .tool::<GetCounter>()
-        .build();
-    let entity = commands.spawn(agent).id();
+    let entity = commands
+        .spawn_scene(bsn! {
+            Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off)
+            AgentTools [
+                @GetCounter,
+                @AddToCounter,
+            ]
+        })
+        .id();
+
     sender.write(UserMessage::new(
         entity,
-        "By calling add_to_counter, the final value obtained by get_counter is greater than 10.",
+        "By calling add_to_counter more than once, let the final value obtained by get_counter greater than 10.",
     ));
 }
 
+#[derive(Resource)]
+enum OutputPhase {
+    ToolCallName,
+    ToolCallArgs,
+    Others,
+}
+
 fn print_text(
-    mut agent_messages: MessageReader<bevy_llm_agent::AgentMessage>,
+    mut agent_messages: MessageReader<AgentMessage>,
     mut app_exit: MessageWriter<AppExit>,
     counter: Res<Counter>,
+    mut output_phase: ResMut<OutputPhase>,
 ) {
     for agent_message in agent_messages.read() {
-        match &agent_message.delta {
-            MultiTurnItem::StreamAssistantItem(message) => match message {
-                AssistantContent::Text(text) => {
-                    print!("{text}");
-                    std::io::stdout().flush().unwrap();
-                }
-                AssistantContent::ToolCall { tool_call, .. } => {
-                    println!();
-                    info!(
-                        "[TOOL CALL] {}({})",
-                        tool_call.function.name, tool_call.function.arguments
-                    );
-                }
-                _ => {}
-            },
-            MultiTurnItem::StreamUserItem(UserContent::ToolResult { tool_result, .. }) => {
-                let text = match tool_result.content.first() {
-                    ToolResultContent::Text(text) => text.text,
-                    ToolResultContent::Image(_) => "<image>".to_string(),
-                };
-                info!("[TOOL RESULT] {}", text);
+        use AgentMessageDelta::*;
+        let delta = match &agent_message.delta {
+            Ok(delta) => delta,
+            Err(AgentMessageError::Other(msg)) => {
+                error!("{msg}");
+                app_exit.write(AppExit::error());
+                continue;
             }
-            MultiTurnItem::FinalResponse(..) => {
+            Err(err) => {
+                error!("{err:?}");
+                app_exit.write(AppExit::error());
+                continue;
+            }
+        };
+        match delta {
+            Content(text) => {
+                print!("{text}");
+                std::io::stdout().flush().unwrap();
+            }
+            ToolCall {
+                name,
+                arguments,
+                tool_call_id,
+            } => match *output_phase {
+                OutputPhase::ToolCallName => {
+                    assert_eq!(tool_call_id, "");
+                    *output_phase = OutputPhase::ToolCallArgs;
+                    print!("{arguments}");
+                }
+                OutputPhase::ToolCallArgs => {
+                    if tool_call_id != "" {
+                        *output_phase = OutputPhase::ToolCallName;
+                        println!(")");
+                        print!("[TOOL INVOKE] {tool_call_id} => {name}(");
+                    } else {
+                        print!("{arguments}");
+                    }
+                }
+                OutputPhase::Others => {
+                    assert_ne!(tool_call_id, "");
+                    *output_phase = OutputPhase::ToolCallName;
+                    println!();
+                    print!("[TOOL INVOKE] {tool_call_id} => {name}(");
+                }
+            },
+            ToolResult {
+                content,
+                tool_call_id,
+            } => {
+                if let OutputPhase::ToolCallArgs = *output_phase {
+                    println!(")");
+                    *output_phase = OutputPhase::Others;
+                }
+                println!("[TOOL RESULT] {} => {}", tool_call_id, content);
+            }
+            Finish => {
                 app_exit.write(if counter.0 > 10 {
                     AppExit::Success
                 } else {
@@ -72,13 +123,14 @@ fn main() {
         .insert_resource(Counter(0))
         .add_plugins((
             DefaultPlugins.set(LogPlugin {
-                filter: format!("{DEFAULT_FILTER},rig::agent::prompt_request::streaming=warn"),
+                filter: DEFAULT_FILTER.to_owned(),
                 ..default()
             }),
             LlmAgentPlugin,
         ))
-        .register_llm_tool::<AddToCounter>()
-        .register_llm_tool::<GetCounter>()
+        .add_agent_tool::<GetCounter>()
+        .add_agent_tool::<AddToCounter>()
+        .insert_resource(OutputPhase::Others)
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, print_text)
         .run();

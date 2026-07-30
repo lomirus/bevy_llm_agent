@@ -1,7 +1,10 @@
-use rig::{agent::MultiTurnStreamItem, providers::deepseek::StreamingCompletionResponse};
-use tokio::sync::mpsc::UnboundedReceiver;
+use crate::messages::agent_message::{AgentMessageDelta, AgentMessageError};
+use bevy::prelude::*;
+use std::sync::{Mutex, mpsc::Receiver};
 
+#[derive(Default, Component)]
 pub(crate) enum AgentStatus {
+    #[default]
     Idle,
-    Streaming(UnboundedReceiver<MultiTurnStreamItem<StreamingCompletionResponse>>),
+    Streaming(Mutex<Receiver<Result<AgentMessageDelta, AgentMessageError>>>),
 }
