@@ -18,16 +18,13 @@ version = "0.19.0"
 default-features = false
 
 [dependencies]
-bevy = { workspace = true, features = ["bevy_log", "bevy_scene"] }
-crossbeam = "0.8.4"
+bevy = { workspace = true, features = ["bevy_log"] }
+crossbeam-channel = "0.5.16"
 oneshot = { version = "0.2.1", features = ["std"] }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 ureq = { version = "3.3.0", features = ["json"] }
-
-[dev-dependencies]
-rand = { workspace = true }
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]

@@ -7,7 +7,7 @@ use bevy::prelude::*;
 pub use core::LlmAgentPlugin;
 
 #[derive(Resource, Deref)]
-struct RawToolCallReceiver(crossbeam::channel::Receiver<RawToolCall>);
+struct RawToolCallReceiver(crossbeam_channel::Receiver<RawToolCall>);
 
 #[derive(Resource, Deref)]
-struct RawToolCallSender(crossbeam::channel::Sender<RawToolCall>);
+struct RawToolCallSender(crossbeam_channel::Sender<RawToolCall>);

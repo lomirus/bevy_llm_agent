@@ -11,7 +11,7 @@ pub struct LlmAgentPlugin;
 
 impl Plugin for LlmAgentPlugin {
     fn build(&self, app: &mut bevy::app::App) {
-        let (tx, rx) = crossbeam::channel::unbounded();
+        let (tx, rx) = crossbeam_channel::unbounded();
         app.add_message::<UserMessage>()
             .add_message::<AgentMessage>()
             .insert_resource(RawToolCallSender(tx))

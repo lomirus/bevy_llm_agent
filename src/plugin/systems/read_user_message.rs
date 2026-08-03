@@ -19,7 +19,7 @@ fn run_agent_loop(
     tools: Vec<Tool>,
     api_base_url: String,
     api_key: String,
-    raw_tool_invocation_sender: crossbeam::channel::Sender<RawToolCall>,
+    raw_tool_invocation_sender: crossbeam_channel::Sender<RawToolCall>,
     tx: mpsc::Sender<DeltaResult>,
     entity: Entity,
 ) {
