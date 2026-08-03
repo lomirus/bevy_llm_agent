@@ -3,16 +3,21 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    DEEPSEEK_V4_FLASH, LlmAgentPlugin,
+    LlmAgentPlugin,
     agent::{Agent, ApiDialect, Thinking},
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta},
         user_message::UserMessage,
     },
+    provider::deepseek,
 };
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let agent = Agent::new(ApiDialect::ChatCompletion, DEEPSEEK_V4_FLASH, Thinking::Off);
+    let agent = Agent::new(
+        ApiDialect::ChatCompletion,
+        deepseek::V4_FLASH,
+        Thinking::Off,
+    );
     commands.spawn(Camera2d);
     let entity = commands
         .spawn((Text::default(), agent, TextFont::from(FontSource::SystemUi)))

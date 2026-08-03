@@ -7,8 +7,9 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    DEEPSEEK_V4_FLASH, LlmAgentPlugin,
+    LlmAgentPlugin,
     agent::{Agent, ApiDialect, Thinking},
+    provider::deepseek,
 };
 
 use auto_scroll::AutoScrollToBottomPlugin;
@@ -18,7 +19,7 @@ fn setup(mut commands: Commands) {
     commands.spawn((Camera2d, IsDefaultUiCamera));
     commands.spawn(Agent::new(
         ApiDialect::ChatCompletion,
-        DEEPSEEK_V4_FLASH,
+        deepseek::V4_FLASH,
         Thinking::Off,
     ));
     commands.spawn_scene(chat_ui());

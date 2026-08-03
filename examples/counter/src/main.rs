@@ -7,12 +7,13 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin,
+    AppExt, LlmAgentPlugin,
     agent::{Agent, ApiDialect, Thinking},
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
         user_message::UserMessage,
     },
+    provider::deepseek,
     tool::AgentTools,
 };
 use tools::{AddToCounter, GetCounter};
@@ -25,7 +26,7 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
         .spawn_scene(bsn! {
             Agent::new(
                 ApiDialect::ChatCompletion,
-                DEEPSEEK_V4_FLASH,
+                deepseek::V4_FLASH,
                 Thinking::Off,
             )
             AgentTools [
