@@ -18,9 +18,9 @@ pub struct Agent {
 
 impl Agent {
     /// The API key is read from the environment variable specified by the provider.
-    pub fn new(api_dialect: ApiDialect, provider: Provider<'_>, thinking: Thinking) -> Self {
+    pub fn new(provider: Provider<'_>, thinking: Thinking) -> Self {
         Agent {
-            api_dialect,
+            api_dialect: provider.api_dialect,
             model: provider.model.to_owned(),
             thinking,
             dialog: Vec::new(),

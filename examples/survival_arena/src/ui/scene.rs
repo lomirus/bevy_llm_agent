@@ -11,7 +11,7 @@ use bevy::{
     ui::widget::ViewportNode,
 };
 use bevy_llm_agent::{
-    agent::{Agent, ApiDialect, DialogMessage, Thinking},
+    agent::{Agent, DialogMessage, Thinking},
     provider::deepseek,
     tool::AgentTools,
 };
@@ -43,11 +43,7 @@ pub(crate) struct MapViewport;
 pub(crate) struct MapCamera;
 
 fn character_agent(id: u8) -> Agent {
-    let mut agent = Agent::new(
-        ApiDialect::ChatCompletion,
-        deepseek::V4_FLASH,
-        Thinking::Off,
-    );
+    let mut agent = Agent::new(deepseek::V4_FLASH, Thinking::Off);
     agent
         .dialog
         .push(DialogMessage::system(&character_system_prompt(id)));

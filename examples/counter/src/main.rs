@@ -8,7 +8,7 @@ use bevy::{
 };
 use bevy_llm_agent::{
     AppExt, LlmAgentPlugin,
-    agent::{Agent, ApiDialect, Thinking},
+    agent::{Agent, Thinking},
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
         user_message::UserMessage,
@@ -25,7 +25,6 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let entity = commands
         .spawn_scene(bsn! {
             Agent::new(
-                ApiDialect::ChatCompletion,
                 deepseek::V4_FLASH,
                 Thinking::Off,
             )

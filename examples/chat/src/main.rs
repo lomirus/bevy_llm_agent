@@ -8,7 +8,7 @@ use bevy::{
 };
 use bevy_llm_agent::{
     LlmAgentPlugin,
-    agent::{Agent, ApiDialect, Thinking},
+    agent::{Agent, Thinking},
     provider::deepseek,
 };
 
@@ -17,11 +17,7 @@ use ui::{chat_ui, enable_send_button, update_chat_messages, use_system_font};
 
 fn setup(mut commands: Commands) {
     commands.spawn((Camera2d, IsDefaultUiCamera));
-    commands.spawn(Agent::new(
-        ApiDialect::ChatCompletion,
-        deepseek::V4_FLASH,
-        Thinking::Off,
-    ));
+    commands.spawn(Agent::new(deepseek::V4_FLASH, Thinking::Off));
     commands.spawn_scene(chat_ui());
 }
 

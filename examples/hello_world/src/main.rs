@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_llm_agent::{
     LlmAgentPlugin,
-    agent::{Agent, ApiDialect, Thinking},
+    agent::{Agent, Thinking},
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta},
         user_message::UserMessage,
@@ -13,11 +13,7 @@ use bevy_llm_agent::{
 };
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let agent = Agent::new(
-        ApiDialect::ChatCompletion,
-        deepseek::V4_FLASH,
-        Thinking::Off,
-    );
+    let agent = Agent::new(deepseek::V4_FLASH, Thinking::Off);
     commands.spawn(Camera2d);
     let entity = commands
         .spawn((Text::default(), agent, TextFont::from(FontSource::SystemUi)))
