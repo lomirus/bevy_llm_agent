@@ -261,33 +261,17 @@ struct ToolCallFunction {
 
 #[derive(Deserialize)]
 struct Response {
-    #[expect(unused)]
-    id: String,
-    #[expect(unused)]
-    object: String,
-    #[expect(unused)]
-    created: u32,
-    #[expect(unused)]
-    model: String,
-    #[expect(unused)]
-    system_fingerprint: String,
     choices: Vec<Choice>,
-    #[expect(unused)]
-    usage: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
 struct Choice {
-    #[expect(unused)]
-    index: u8,
     delta: Delta,
     finish_reason: Option<FinishReason>,
 }
 
 #[derive(Deserialize)]
 struct Delta {
-    #[expect(unused)]
-    role: Option<String>,
     content: Option<String>,
     reasoning_content: Option<String>,
     tool_calls: Option<Vec<ToolCall>>,
