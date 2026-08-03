@@ -41,18 +41,11 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     ));
 }
 
-#[derive(Resource)]
-enum OutputPhase {
-    ToolCallName,
-    ToolCallArgs,
-    Others,
-}
-
 fn print_text(
     mut agent_messages: MessageReader<AgentMessage>,
     mut app_exit: MessageWriter<AppExit>,
     counter: Res<Counter>,
-    mut output_phase: ResMut<OutputPhase>,
+    mut tool_call_open: Local<bool>,
 ) {
     for agent_message in agent_messages.read() {
         use AgentMessageDelta::*;
@@ -78,35 +71,25 @@ fn print_text(
                 name,
                 arguments,
                 tool_call_id,
-            } => match *output_phase {
-                OutputPhase::ToolCallName => {
-                    assert_eq!(tool_call_id, "");
-                    *output_phase = OutputPhase::ToolCallArgs;
-                    print!("{arguments}");
-                }
-                OutputPhase::ToolCallArgs => {
-                    if tool_call_id != "" {
-                        *output_phase = OutputPhase::ToolCallName;
+            } => {
+                if !tool_call_id.is_empty() {
+                    if *tool_call_open {
                         println!(")");
-                        print!("[TOOL INVOKE] {tool_call_id} => {name}(");
                     } else {
-                        print!("{arguments}");
+                        println!();
                     }
-                }
-                OutputPhase::Others => {
-                    assert_ne!(tool_call_id, "");
-                    *output_phase = OutputPhase::ToolCallName;
-                    println!();
                     print!("[TOOL INVOKE] {tool_call_id} => {name}(");
+                    *tool_call_open = true;
                 }
-            },
+                print!("{arguments}");
+            }
             ToolResult {
                 content,
                 tool_call_id,
             } => {
-                if let OutputPhase::ToolCallArgs = *output_phase {
+                if *tool_call_open {
                     println!(")");
-                    *output_phase = OutputPhase::Others;
+                    *tool_call_open = false;
                 }
                 println!("[TOOL RESULT] {} => {}", tool_call_id, content);
             }
@@ -134,7 +117,6 @@ fn main() {
         ))
         .add_agent_tool::<GetCounter>()
         .add_agent_tool::<AddToCounter>()
-        .insert_resource(OutputPhase::Others)
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, print_text)
         .run();
