@@ -94,14 +94,16 @@ pub(crate) fn read_user_message(
     for UserMessage { entity, prompt } in reader.read() {
         let (mut agent, mut agent_status) = agent_query.get_mut(*entity).unwrap();
 
+        if let AgentStatus::Streaming(_) = *agent_status {
+            warn!("ignoring user message; agent {entity} is already streaming");
+            continue;
+        }
+
         agent.dialog.push(DialogMessage::User {
             content: prompt.to_owned(),
         });
 
         let (tx, rx) = mpsc::channel::<DeltaResult>();
-        if let AgentStatus::Streaming(_) = *agent_status {
-            unreachable!();
-        }
         *agent_status = AgentStatus::Streaming(Mutex::new(rx));
 
         let tools: Vec<Tool> = match agent_tools_query.get(*entity) {
