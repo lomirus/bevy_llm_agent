@@ -8,7 +8,7 @@ use bevy::{
 };
 use bevy_llm_agent::{
     AppExt, DEEPSEEK_V4_FLASH, LlmAgentPlugin,
-    agent::{Agent, Thinking},
+    agent::{Agent, ApiDialect, Thinking},
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
         user_message::UserMessage,
@@ -23,7 +23,11 @@ struct Counter(usize);
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let entity = commands
         .spawn_scene(bsn! {
-            Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off)
+            Agent::new(
+                ApiDialect::ChatCompletion,
+                DEEPSEEK_V4_FLASH,
+                Thinking::Off,
+            )
             AgentTools [
                 @GetCounter,
                 @AddToCounter,

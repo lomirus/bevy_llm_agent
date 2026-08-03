@@ -12,7 +12,7 @@ use bevy::{
 };
 use bevy_llm_agent::{
     DEEPSEEK_V4_FLASH,
-    agent::{Agent, DialogMessage, Thinking},
+    agent::{Agent, ApiDialect, DialogMessage, Thinking},
     tool::AgentTools,
 };
 use rand::random_range;
@@ -43,8 +43,10 @@ pub(crate) struct MapViewport;
 pub(crate) struct MapCamera;
 
 fn character_agent(id: u8) -> Agent {
-    let mut agent = Agent::new(DEEPSEEK_V4_FLASH, Thinking::Off);
-    agent.dialog.push(DialogMessage::system(&character_system_prompt(id)));
+    let mut agent = Agent::new(ApiDialect::ChatCompletion, DEEPSEEK_V4_FLASH, Thinking::Off);
+    agent
+        .dialog
+        .push(DialogMessage::system(&character_system_prompt(id)));
     agent
 }
 

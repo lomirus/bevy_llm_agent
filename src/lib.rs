@@ -1,6 +1,6 @@
 pub mod agent;
+mod api;
 mod app_ext;
-mod chat_completion;
 pub mod messages;
 mod plugin;
 pub mod tool;
