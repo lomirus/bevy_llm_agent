@@ -36,13 +36,21 @@ pub(crate) fn apply_delta(dialog: &mut Vec<DialogMessage>, delta: &AgentMessageD
             arguments,
             tool_call_id,
         } => {
-            if tool_call_id.is_empty() {
-                assert!(name.is_empty());
+            if name.is_empty() {
                 let DialogMessage::Assistant { tool_calls, .. } = dialog.last_mut().unwrap() else {
                     unreachable!()
                 };
-                tool_calls.last_mut().unwrap().arguments.push_str(arguments);
+                let tool_call = if tool_call_id.is_empty() {
+                    tool_calls.last_mut()
+                } else {
+                    tool_calls
+                        .iter_mut()
+                        .find(|tool_call| tool_call.id == *tool_call_id)
+                }
+                .unwrap();
+                tool_call.arguments.push_str(arguments);
             } else {
+                assert!(!tool_call_id.is_empty());
                 match dialog.last_mut() {
                     Some(DialogMessage::Assistant { tool_calls, .. }) => {
                         tool_calls.push(ToolCall {

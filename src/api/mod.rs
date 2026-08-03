@@ -1,4 +1,5 @@
 mod chat_completion;
+mod responses;
 
 use std::sync::mpsc;
 
@@ -36,9 +37,9 @@ pub(crate) fn stream_response(
             api_key,
             tx,
         ),
-        ApiDialect::ResponsesApi => StreamOutcome::Error(AgentMessageError::Other(
-            "Responses API is not supported yet".to_owned(),
-        )),
+        ApiDialect::DeepSeekResponses => {
+            responses::stream_response(dialog, model, thinking, tools, api_base_url, api_key, tx)
+        }
     }
 }
 

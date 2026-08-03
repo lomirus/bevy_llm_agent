@@ -5,6 +5,6 @@ pub enum ApiDialect {
     /// DeepSeek's OpenAI-compatible Chat Completions format.
     #[default]
     DeepSeekChatCompletions,
-    /// Reserved for future support.
-    ResponsesApi,
+    /// DeepSeek's OpenAI-compatible Responses API format.
+    DeepSeekResponses,
 }

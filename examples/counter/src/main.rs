@@ -72,7 +72,7 @@ fn print_text(
                 arguments,
                 tool_call_id,
             } => {
-                if !tool_call_id.is_empty() {
+                if !name.is_empty() {
                     if *tool_call_open {
                         println!(")");
                     } else {
