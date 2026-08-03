@@ -27,7 +27,7 @@ pub(crate) fn stream_response(
     tx: &mpsc::Sender<DeltaResult>,
 ) -> StreamOutcome {
     match api_dialect {
-        ApiDialect::ChatCompletion => chat_completion::stream_response(
+        ApiDialect::DeepSeekChatCompletions => chat_completion::stream_response(
             dialog,
             model,
             thinking,

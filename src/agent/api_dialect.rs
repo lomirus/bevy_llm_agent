@@ -2,8 +2,9 @@
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum ApiDialect {
+    /// DeepSeek's OpenAI-compatible Chat Completions format.
     #[default]
-    ChatCompletion,
+    DeepSeekChatCompletions,
     /// Reserved for future support.
     ResponsesApi,
 }
