@@ -24,10 +24,7 @@ struct Counter(usize);
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let entity = commands
         .spawn_scene(bsn! {
-            Agent::new(
-                deepseek::V4_FLASH,
-                Thinking::Off,
-            )
+            Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap()
             AgentTools [
                 @GetCounter,
                 @AddToCounter,

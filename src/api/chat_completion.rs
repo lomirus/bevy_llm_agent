@@ -29,11 +29,12 @@ pub(super) fn stream_response(
         thinking: Thinking {
             r#type: match thinking {
                 Off => "disabled".to_owned(),
-                High | Max => "enabled".to_owned(),
+                Low | High | Max => "enabled".to_owned(),
             },
         },
         reasoning_effort: match thinking {
             Off => None,
+            Low => Some("low".to_owned()),
             High => Some("high".to_owned()),
             Max => Some("max".to_owned()),
         },

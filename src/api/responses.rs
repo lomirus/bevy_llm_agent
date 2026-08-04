@@ -64,6 +64,7 @@ fn build_request(
         reasoning: Reasoning {
             effort: match thinking {
                 Off => "none",
+                Low => "low",
                 High => "high",
                 Max => "max",
             },
