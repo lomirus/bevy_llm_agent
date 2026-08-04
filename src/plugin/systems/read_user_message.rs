@@ -34,15 +34,15 @@ fn run_agent_loop(
             &api_key,
             &tx,
         ) {
-            StreamOutcome::Finished => {
+            Ok(StreamOutcome::Finished) => {
                 tx.send(Ok(AgentMessageDelta::Finish)).unwrap();
                 return;
             }
-            StreamOutcome::Error(err) => {
+            Err(err) => {
                 tx.send(Err(err)).unwrap();
                 return;
             }
-            StreamOutcome::ToolCalls => {
+            Ok(StreamOutcome::ToolCalls) => {
                 let DialogMessage::Assistant { tool_calls, .. } = dialog.last().unwrap() else {
                     unreachable!()
                 };

@@ -20,7 +20,7 @@ pub(super) fn stream_response(
     api_base_url: &str,
     api_key: &str,
     tx: &mpsc::Sender<DeltaResult>,
-) -> StreamOutcome {
+) -> Result<StreamOutcome, AgentMessageError> {
     use AgentThinking::*;
 
     let body = Request {
@@ -64,7 +64,7 @@ pub(super) fn stream_response(
         .send_json(body)
     {
         Ok(response) => response,
-        Err(error) => return StreamOutcome::Error(AgentMessageError::Other(error.to_string())),
+        Err(error) => return Err(AgentMessageError::Other(error.to_string())),
     };
 
     if !response.status().is_success() {
@@ -75,7 +75,7 @@ pub(super) fn stream_response(
         } else {
             body
         };
-        return StreamOutcome::Error(AgentMessageError::Other(message));
+        return Err(AgentMessageError::Other(message));
     }
 
     consume_sse_stream(BufReader::new(response.body_mut().as_reader()), dialog, tx)
@@ -85,7 +85,7 @@ fn consume_sse_stream(
     reader: impl BufRead,
     dialog: &mut Vec<DialogMessage>,
     tx: &mpsc::Sender<DeltaResult>,
-) -> StreamOutcome {
+) -> Result<StreamOutcome, AgentMessageError> {
     for line in reader.lines().map_while(Result::ok) {
         let Some(data) = line.strip_prefix("data: ") else {
             continue;
@@ -99,13 +99,11 @@ fn consume_sse_stream(
         if let Some(reason) = &choice.finish_reason {
             use FinishReason::*;
             return match reason {
-                Stop => StreamOutcome::Finished,
-                Length => StreamOutcome::Error(AgentMessageError::Length),
-                ContentFilter => StreamOutcome::Error(AgentMessageError::ContentFilter),
-                InsufficientSystemResource => {
-                    StreamOutcome::Error(AgentMessageError::InsufficientSystemResource)
-                }
-                ToolCalls => StreamOutcome::ToolCalls,
+                Stop => Ok(StreamOutcome::Finished),
+                Length => Err(AgentMessageError::Length),
+                ContentFilter => Err(AgentMessageError::ContentFilter),
+                InsufficientSystemResource => Err(AgentMessageError::InsufficientSystemResource),
+                ToolCalls => Ok(StreamOutcome::ToolCalls),
             };
         }
         if let Some(reasoning_content) = &choice.delta.reasoning_content {

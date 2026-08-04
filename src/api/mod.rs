@@ -13,7 +13,6 @@ pub(crate) type DeltaResult = Result<AgentMessageDelta, AgentMessageError>;
 
 pub(crate) enum StreamOutcome {
     Finished,
-    Error(AgentMessageError),
     ToolCalls,
 }
 
@@ -26,7 +25,7 @@ pub(crate) fn stream_response(
     api_base_url: &str,
     api_key: &str,
     tx: &mpsc::Sender<DeltaResult>,
-) -> StreamOutcome {
+) -> Result<StreamOutcome, AgentMessageError> {
     match api_dialect {
         ApiDialect::DeepSeekChatCompletions => chat_completion::stream_response(
             dialog,

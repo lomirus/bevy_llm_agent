@@ -21,7 +21,7 @@ pub(super) fn stream_response(
     api_base_url: &str,
     api_key: &str,
     tx: &mpsc::Sender<DeltaResult>,
-) -> StreamOutcome {
+) -> Result<StreamOutcome, AgentMessageError> {
     let body = build_request(dialog, model, thinking, tools);
     let url = format!("{api_base_url}/responses");
     let mut response = match ureq::post(&url)
@@ -33,7 +33,7 @@ pub(super) fn stream_response(
         .send_json(body)
     {
         Ok(response) => response,
-        Err(error) => return StreamOutcome::Error(AgentMessageError::Other(error.to_string())),
+        Err(error) => return Err(AgentMessageError::Other(error.to_string())),
     };
 
     if !response.status().is_success() {
@@ -44,7 +44,7 @@ pub(super) fn stream_response(
         } else {
             body
         };
-        return StreamOutcome::Error(AgentMessageError::Other(message));
+        return Err(AgentMessageError::Other(message));
     }
 
     consume_sse_stream(BufReader::new(response.body_mut().as_reader()), dialog, tx)
@@ -136,14 +136,14 @@ fn consume_sse_stream(
     reader: impl BufRead,
     dialog: &mut Vec<DialogMessage>,
     tx: &mpsc::Sender<DeltaResult>,
-) -> StreamOutcome {
+) -> Result<StreamOutcome, AgentMessageError> {
     let mut tool_calls = HashMap::<String, (String, String)>::new();
 
     for line in reader.lines() {
         let line = match line {
             Ok(line) => line,
             Err(error) => {
-                return StreamOutcome::Error(AgentMessageError::Other(error.to_string()));
+                return Err(AgentMessageError::Other(error.to_string()));
             }
         };
         let Some(data) = line.strip_prefix("data: ") else {
@@ -152,7 +152,7 @@ fn consume_sse_stream(
         let event: Event = match serde_json::from_str(data) {
             Ok(event) => event,
             Err(error) => {
-                return StreamOutcome::Error(AgentMessageError::Other(error.to_string()));
+                return Err(AgentMessageError::Other(error.to_string()));
             }
         };
 
@@ -166,7 +166,7 @@ fn consume_sse_stream(
             Event::OutputItemAdded { item } if item.r#type == "function_call" => {
                 let (Some(item_id), Some(call_id), Some(name)) = (item.id, item.call_id, item.name)
                 else {
-                    return StreamOutcome::Error(AgentMessageError::Other(
+                    return Err(AgentMessageError::Other(
                         "function call output item is missing required fields".to_owned(),
                     ));
                 };
@@ -184,7 +184,7 @@ fn consume_sse_stream(
             }
             Event::FunctionCallArgumentsDelta { item_id, delta } => {
                 let Some((call_id, arguments)) = tool_calls.get_mut(&item_id) else {
-                    return StreamOutcome::Error(AgentMessageError::Other(format!(
+                    return Err(AgentMessageError::Other(format!(
                         "received arguments for unknown function call item: {item_id}"
                     )));
                 };
@@ -201,7 +201,7 @@ fn consume_sse_stream(
             }
             Event::FunctionCallArgumentsDone { item_id, arguments } => {
                 let Some((call_id, streamed_arguments)) = tool_calls.get_mut(&item_id) else {
-                    return StreamOutcome::Error(AgentMessageError::Other(format!(
+                    return Err(AgentMessageError::Other(format!(
                         "received completed arguments for unknown function call item: {item_id}"
                     )));
                 };
@@ -219,7 +219,7 @@ fn consume_sse_stream(
                     }
                     *streamed_arguments = arguments;
                 } else {
-                    return StreamOutcome::Error(AgentMessageError::Other(format!(
+                    return Err(AgentMessageError::Other(format!(
                         "streamed arguments do not match completed function call: {item_id}"
                     )));
                 }
@@ -230,9 +230,9 @@ fn consume_sse_stream(
                     .iter()
                     .any(|item| item.r#type == "function_call")
                 {
-                    StreamOutcome::ToolCalls
+                    Ok(StreamOutcome::ToolCalls)
                 } else {
-                    StreamOutcome::Finished
+                    Ok(StreamOutcome::Finished)
                 };
             }
             Event::Incomplete { response } => {
@@ -240,14 +240,12 @@ fn consume_sse_stream(
                     .incomplete_details
                     .and_then(|details| details.reason);
                 return match reason.as_deref() {
-                    Some("max_output_tokens") => StreamOutcome::Error(AgentMessageError::Length),
-                    Some("content_filter") => {
-                        StreamOutcome::Error(AgentMessageError::ContentFilter)
-                    }
-                    Some(reason) => StreamOutcome::Error(AgentMessageError::Other(format!(
+                    Some("max_output_tokens") => Err(AgentMessageError::Length),
+                    Some("content_filter") => Err(AgentMessageError::ContentFilter),
+                    Some(reason) => Err(AgentMessageError::Other(format!(
                         "response incomplete: {reason}"
                     ))),
-                    None => StreamOutcome::Error(AgentMessageError::Other(
+                    None => Err(AgentMessageError::Other(
                         "response incomplete".to_owned(),
                     )),
                 };
@@ -257,13 +255,13 @@ fn consume_sse_stream(
                     .error
                     .map(|error| format!("{}: {}", error.code, error.message))
                     .unwrap_or_else(|| "response failed".to_owned());
-                return StreamOutcome::Error(AgentMessageError::Other(message));
+                return Err(AgentMessageError::Other(message));
             }
             _ => {}
         }
     }
 
-    StreamOutcome::Error(AgentMessageError::Other(
+    Err(AgentMessageError::Other(
         "response stream ended without a terminal event".to_owned(),
     ))
 }
