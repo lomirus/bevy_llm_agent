@@ -3,13 +3,13 @@ pub mod deepseek;
 use crate::agent::{ApiDialect, Thinking};
 
 /// Describes an LLM provider endpoint, model, and API dialect.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Provider<'a> {
     pub api_dialect: ApiDialect,
     pub base_url: &'a str,
     pub model: &'a str,
-    pub api_key_env: &'a str,
     pub thinking: Thinking,
+    pub(crate) api_key: String,
 }
 
 /// Builds a provider after validating its thinking configuration.
@@ -30,13 +30,19 @@ impl<'a> ProviderBuilder<'a> {
                 self.model
             ));
         }
+        let api_key = std::env::var(self.api_key_env).map_err(|error| {
+            format!(
+                "failed to read API key from environment variable {}: {error}",
+                self.api_key_env
+            )
+        })?;
 
         Ok(Provider {
             api_dialect: self.api_dialect,
             base_url: self.base_url,
             model: self.model,
-            api_key_env: self.api_key_env,
             thinking,
+            api_key,
         })
     }
 }

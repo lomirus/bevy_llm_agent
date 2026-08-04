@@ -26,7 +26,7 @@ impl Agent {
             thinking: provider.thinking,
             dialog: Vec::new(),
             api_base_url: provider.base_url.to_owned(),
-            api_key: std::env::var(provider.api_key_env).unwrap(),
+            api_key: provider.api_key,
         })
     }
 }
