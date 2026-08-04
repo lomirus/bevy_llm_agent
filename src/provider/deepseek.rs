@@ -7,6 +7,9 @@ const FLASH_SUPPORTED_THINKING: &[Thinking] =
     &[Thinking::Off, Thinking::Low, Thinking::High, Thinking::Max];
 const PRO_SUPPORTED_THINKING: &[Thinking] = &[Thinking::Off, Thinking::High, Thinking::Max];
 
+/// `deepseek-v4-flash`.
+///
+/// Allowed [`Thinking`] options: [`Off`](Thinking::Off), [`Low`](Thinking::Low), [`High`](Thinking::High), [`Max`](Thinking::Max).
 pub const V4_FLASH: ProviderBuilder<'static> = ProviderBuilder {
     api_dialect: ApiDialect::DeepSeekResponses,
     base_url: BASE_URL,
@@ -14,6 +17,10 @@ pub const V4_FLASH: ProviderBuilder<'static> = ProviderBuilder {
     api_key_env: API_KEY_ENV,
     supported_thinking: FLASH_SUPPORTED_THINKING,
 };
+
+/// `deepseek-v4-pro`.
+///
+/// Allowed [`Thinking`] options: [`Off`](Thinking::Off), [`High`](Thinking::High), [`Max`](Thinking::Max).
 pub const V4_PRO: ProviderBuilder<'static> = ProviderBuilder {
     api_dialect: ApiDialect::DeepSeekChatCompletions,
     base_url: BASE_URL,

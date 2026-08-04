@@ -7,4 +7,6 @@ pub enum ApiDialect {
     DeepSeekChatCompletions,
     /// DeepSeek's OpenAI-compatible Responses API format.
     DeepSeekResponses,
+    /// Moonshot's OpenAI-compatible Chat Completions format.
+    MoonshotChatCompletions,
 }

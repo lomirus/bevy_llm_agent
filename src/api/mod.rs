@@ -27,15 +27,17 @@ pub(crate) fn stream_response(
     tx: &mpsc::Sender<DeltaResult>,
 ) -> Result<StreamOutcome, AgentMessageError> {
     match api_dialect {
-        ApiDialect::DeepSeekChatCompletions => chat_completion::stream_response(
-            dialog,
-            model,
-            thinking,
-            tools,
-            api_base_url,
-            api_key,
-            tx,
-        ),
+        ApiDialect::DeepSeekChatCompletions | ApiDialect::MoonshotChatCompletions => {
+            chat_completion::stream_response(
+                dialog,
+                model,
+                thinking,
+                tools,
+                api_base_url,
+                api_key,
+                tx,
+            )
+        }
         ApiDialect::DeepSeekResponses => {
             responses::stream_response(dialog, model, thinking, tools, api_base_url, api_key, tx)
         }

@@ -1,4 +1,5 @@
 pub mod deepseek;
+pub mod moonshot;
 
 use crate::agent::{ApiDialect, Thinking};
 
