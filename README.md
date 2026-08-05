@@ -13,22 +13,7 @@ A Bevy plugin for integrating LLM agents into Bevy applications.
 
 ## Basic Usage
 
-### Create an Agent
-
-```bash
-export DEEPSEEK_API_KEY="sk-xxx"
-```
-
-```rust
-bsn! {
-    template_value(Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap())
-    AgentTools [
-        @GetWeather,
-    ]
-}
-```
-
-### Create a Tool
+### Create a Tool (Optional)
 
 ```rust
 /// Get the weather for a city.
@@ -47,10 +32,33 @@ fn get_weather(mut calls: MessageMutator<ToolCall<GetWeather>>) {
         call.respond(format!("It is sunny in {}.", call.args.city)).unwrap();
     }
 }
+```
 
+### Set Up the App
+
+```rust
 App::new()
     .add_agent_tool::<GetWeather>()
+    .add_plugins((
+        DefaultPlugins,
+        LlmAgentPlugin,
+    ))
     .run();
+```
+
+### Create an Agent
+
+```bash
+export DEEPSEEK_API_KEY="sk-xxx"
+```
+
+```rust
+bsn! {
+    template_value(Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap())
+    AgentTools [
+        @GetWeather,
+    ]
+}
 ```
 
 ### Send a Message
