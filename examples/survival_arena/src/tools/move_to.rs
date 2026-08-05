@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
+use bevy_llm_agent::{agent_tool, tool::ToolCall};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -9,17 +9,9 @@ use crate::game::{Character, Coordinate};
 ///
 /// - Requirements: you are alive; distance to target >= 1; target coordinates within (-10, 10) on both axes.
 /// - Note: other tools may still be called in the same turn after this succeeds. The "no further turns until arrival" rule applies after the turn finishes.
+#[agent_tool(args = Args, output = Output, system = system)]
 #[derive(SceneComponent, JsonSchema, Clone, Default)]
 pub(crate) struct MoveTo;
-
-impl MoveTo {
-    fn scene() -> impl Scene {
-        let tool = Tool::of::<Self>();
-        bsn! {
-            template_value(tool)
-        }
-    }
-}
 
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct Args {
@@ -30,15 +22,6 @@ pub(crate) struct Args {
 pub(crate) struct Output {
     is_success: bool,
     err_msg: Option<String>,
-}
-
-impl ToolTrait for MoveTo {
-    type Args = Args;
-    type Output = Output;
-
-    fn boxed_system() -> bevy::ecs::system::BoxedSystem {
-        Box::new(IntoSystem::into_system(system))
-    }
 }
 
 fn system(mut calls: MessageMutator<ToolCall<MoveTo>>, mut character_query: Query<&mut Character>) {

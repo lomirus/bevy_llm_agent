@@ -1,22 +1,14 @@
 use bevy::prelude::*;
-use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
+use bevy_llm_agent::{agent_tool, tool::ToolCall};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 use crate::game::{Character, ElapsedTime};
 
-#[derive(SceneComponent, JsonSchema, Clone, Default)]
 /// Get current information: yourself, all other living characters, and elapsed time (seconds).
+#[agent_tool(args = Args, output = Output, system = system)]
+#[derive(SceneComponent, JsonSchema, Clone, Default)]
 pub(crate) struct GetCurrentInfo;
-
-impl GetCurrentInfo {
-    fn scene() -> impl Scene {
-        let tool = Tool::of::<Self>();
-        bsn! {
-            template_value(tool)
-        }
-    }
-}
 
 #[derive(JsonSchema, Deserialize)]
 pub(crate) struct Args {}
@@ -27,15 +19,6 @@ pub(crate) struct Output {
     characters_info: Vec<Character>,
     /// Unit: s
     elapsed_time: f32,
-}
-
-impl ToolTrait for GetCurrentInfo {
-    type Args = Args;
-    type Output = Output;
-
-    fn boxed_system() -> bevy::ecs::system::BoxedSystem {
-        Box::new(IntoSystem::into_system(system))
-    }
 }
 
 fn system(

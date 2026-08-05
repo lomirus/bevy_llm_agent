@@ -358,12 +358,23 @@ name = "bevy-llm-agent"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "bevy-llm-agent-macros",
  "crossbeam-channel",
  "oneshot",
  "schemars",
  "serde",
  "serde_json",
  "ureq",
+]
+
+[[package]]
+name = "bevy-llm-agent-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro-crate",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.3",
 ]
 
 [[package]]

@@ -1,36 +1,19 @@
 use bevy::prelude::*;
-use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
+use bevy_llm_agent::{agent_tool, tool::ToolCall};
 use schemars::JsonSchema;
 use serde::Deserialize;
 
 use crate::Counter;
 
-#[derive(SceneComponent, JsonSchema, Clone, Default)]
 /// Add an unsigned integer value to counter.
+#[agent_tool(args = Args, output = (), system = add_to_counter)]
+#[derive(SceneComponent, JsonSchema, Clone, Default)]
 pub(crate) struct AddToCounter;
-
-impl AddToCounter {
-    fn scene() -> impl Scene {
-        let tool = Tool::of::<Self>();
-        bsn! {
-            template_value(tool)
-        }
-    }
-}
 
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct Args {
     /// The unsigned integer value added to counter.
     increment: usize,
-}
-
-impl ToolTrait for AddToCounter {
-    type Args = Args;
-    type Output = ();
-
-    fn boxed_system() -> bevy::ecs::system::BoxedSystem {
-        Box::new(IntoSystem::into_system(add_to_counter))
-    }
 }
 
 fn add_to_counter(mut calls: MessageMutator<ToolCall<AddToCounter>>, mut counter: ResMut<Counter>) {

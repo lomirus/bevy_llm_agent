@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_llm_agent::tool::{Tool, ToolCall, ToolTrait};
+use bevy_llm_agent::{agent_tool, tool::ToolCall};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -9,17 +9,9 @@ use crate::game::Character;
 ///
 /// - Requirements: you are alive; target exists, is alive, and is not yourself; your combat power >= target's; distance < 1.
 /// - Success: target is eliminated; your combat power becomes the sum of both.
+#[agent_tool(args = Args, output = Output, system = system)]
 #[derive(SceneComponent, JsonSchema, Clone, Default)]
 pub(crate) struct DevourCharacter;
-
-impl DevourCharacter {
-    fn scene() -> impl Scene {
-        let tool = Tool::of::<Self>();
-        bsn! {
-            template_value(tool)
-        }
-    }
-}
 
 #[derive(Deserialize, JsonSchema)]
 pub(crate) struct Args {
@@ -30,15 +22,6 @@ pub(crate) struct Args {
 pub(crate) struct Output {
     is_success: bool,
     err_msg: Option<String>,
-}
-
-impl ToolTrait for DevourCharacter {
-    type Args = Args;
-    type Output = Output;
-
-    fn boxed_system() -> bevy::ecs::system::BoxedSystem {
-        Box::new(IntoSystem::into_system(system))
-    }
 }
 
 fn system(
