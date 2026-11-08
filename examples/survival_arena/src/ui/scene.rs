@@ -8,6 +8,7 @@ use bevy::{
     },
     prelude::*,
     render::render_resource::{TextureDimension, TextureFormat, TextureUsages},
+    scene::Ready,
     ui::widget::ViewportNode,
 };
 use bevy_llm_agent::{
@@ -55,18 +56,20 @@ fn character_scene(character: Character) -> impl Scene {
     let transform = Transform::from_xyz(character.coordinate.x, character.coordinate.y, 0.0);
     let render_layers = RenderLayers::layer(MAP_RENDER_LAYER);
     bsn! {
-        template_value(character)
-        template_value(agent)
+        character
+        agent
         AgentTools [
-            @GetCurrentInfo,
-            @MoveTo,
-            @DevourCharacter,
+            @GetCurrentInfo
+            --
+            @MoveTo
+            --
+            @DevourCharacter
         ]
         Mesh2d(asset_value(Circle::new(CHARACTER_RADIUS_M)))
         MeshMaterial2d::<ColorMaterial>(asset_value(palette::LIGHT_GRAY_1))
-        template_value(transform)
-        template_value(render_layers)
-        on(on_character_map_click)
+        transform
+        render_layers
+        @on(on_character_map_click)
     }
 }
 
@@ -81,13 +84,14 @@ fn map_panel() -> impl Scene {
         }
         ThemeBackgroundColor(tokens::PANE_BODY_BG)
         ThemeBorderColor(tokens::PANE_HEADER_BORDER)
-        Children [(
+        Children [
             Node {
                 width: percent(100),
                 height: percent(100),
             }
             MapViewport
-        )]
+            @on(attach_map_viewport)
+        ]
     }
 }
 
@@ -145,13 +149,13 @@ pub(crate) fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.spawn_scene(game_ui(&characters));
 }
 
-pub(crate) fn attach_map_viewport(
+fn attach_map_viewport(
+    ready: On<Ready>,
     mut commands: Commands,
-    map_viewport: Single<Entity, With<MapViewport>>,
     map_camera: Single<Entity, With<MapCamera>>,
 ) {
     commands
-        .entity(*map_viewport)
+        .entity(ready.entity)
         .insert(ViewportNode::new(*map_camera));
 }
 
@@ -174,22 +178,23 @@ fn game_ui(characters: &[(Entity, Character)]) -> impl Scene {
         ThemeBackgroundColor(tokens::WINDOW_BG)
         Children [
             // Character inspector
-            (
-                Node {
-                    min_width: px(240),
-                    display: Display::Flex,
-                    flex_direction: FlexDirection::Column,
-                    row_gap: px(12),
-                }
-                Children [
-                    ({character_detail_panel()}),
-                    ({character_list_panel(rows)}),
-                ]
-            ),
+            Node {
+                min_width: px(240),
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                row_gap: px(12),
+            }
+            Children [
+                @character_detail_panel()
+                --
+                @character_list_panel(rows)
+            ]
+            --
             // 20m x 20m square game map
-            ({map_panel()}),
+            @map_panel()
+            --
             // Right-hand dialogue panel
-            ({dialogue_section()}),
+            @dialogue_section()
         ]
     }
 }

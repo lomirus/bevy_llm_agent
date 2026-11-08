@@ -24,17 +24,18 @@ struct Counter(usize);
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let entity = commands
         .spawn_scene(bsn! {
-            template_value(Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap())
-            AgentTools [
-                @GetCounter,
-                @AddToCounter,
-            ]
+                Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap()
+                AgentTools [
+                    @GetCounter
+                    --
+                    @AddToCounter
+                ]
         })
         .id();
 
     sender.write(UserMessage::new(
-        entity,
-        "By calling add_to_counter more than once, let the final value obtained by get_counter greater than 10.",
+            entity,
+            "By calling add_to_counter more than once, let the final value obtained by get_counter greater than 10.",
     ));
 }
 

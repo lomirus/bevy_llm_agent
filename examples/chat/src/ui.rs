@@ -11,7 +11,7 @@ use bevy::{
     input::{ButtonState, keyboard::KeyboardInput},
     input_focus::FocusedInput,
     prelude::*,
-    text::{EditableText, FontSource, FontSourceTemplate},
+    text::{EditableText, FontSourceTemplate, GenericFontFamily},
     ui::{InteractionDisabled, Overflow},
     ui_widgets::{Activate, ControlOrientation, ScrollArea},
 };
@@ -79,7 +79,7 @@ fn message_bubble(body: &str, align: AlignSelf) -> impl Scene {
         ThemedText
         TextLayout::new(Justify::Left, LineBreak::WordOrCharacter)
         TextFont {
-            font: FontSourceTemplate::SystemUi,
+            font: FontSourceTemplate::Generic(GenericFontFamily::SystemUi),
             font_size: FontSize::Px(UI_FONT_SIZE),
         }
     }
@@ -97,39 +97,36 @@ fn chat_messages_panel() -> impl Scene {
             },
         }
         Children [
-            (
-                #chat_scroll
+            #chat_scroll
+            Node {
+                flex_grow: 1.0,
+                min_height: px(0),
+                overflow: Overflow::scroll_y(),
+                padding: px(8),
+            }
+            ScrollArea
+            AutoScrollToBottom
+            Children [
                 Node {
-                    flex_grow: 1.0,
-                    min_height: px(0),
-                    overflow: Overflow::scroll_y(),
-                    padding: px(8),
+                    width: percent(100),
+                    display: Display::Flex,
+                    flex_direction: FlexDirection::Column,
+                    row_gap: px(8),
                 }
-                ScrollArea
-                AutoScrollToBottom
-                Children [(
-                    Node {
-                        width: percent(100),
-                        display: Display::Flex,
-                        flex_direction: FlexDirection::Column,
-                        row_gap: px(8),
-                    }
-                    ChatMessageList
-                )]
-            ),
-            (
-                Node {
-                    position_type: PositionType::Absolute,
-                    right: px(0),
-                    top: px(0),
-                    bottom: px(0),
-                    width: px(6),
-                }
-                @FeathersScrollbar {
-                    @target: #chat_scroll,
-                    @orientation: {ControlOrientation::Vertical}
-                }
-            )
+                ChatMessageList
+            ]
+            --
+            Node {
+                position_type: PositionType::Absolute,
+                right: px(0),
+                top: px(0),
+                bottom: px(0),
+                width: px(6),
+            }
+            @FeathersScrollbar {
+                @target: #chat_scroll,
+                @orientation: {ControlOrientation::Vertical}
+            }
         ]
     }
 }
@@ -144,25 +141,26 @@ fn input_row() -> impl Scene {
             flex_shrink: 0.0,
         }
         Children [
-            (
-                @FeathersTextInputContainer
-                Children [(
-                    @FeathersTextInput
-                    ChatInput
-                    on(on_chat_input_enter)
-                )]
-            ),
-            (
-                @FeathersButton {
-                    @caption: bsn! {
-                        Text("Send")
-                        ThemedText
-                    }
-                    @variant: ButtonVariant::Primary,
+            @FeathersTextInputContainer
+            Children [
+                @FeathersTextInput
+                TextFont {
+                    font: FontSourceTemplate::Generic(GenericFontFamily::SystemUi),
+                    font_size: FontSize::Px(UI_FONT_SIZE),
                 }
-                SendButton
-                on(on_send_clicked)
-            ),
+                ChatInput
+                @on(on_chat_input_enter)
+            ]
+            --
+            @FeathersButton {
+                @caption: bsn! {
+                    Text("Send")
+                    ThemedText
+                }
+                @variant: ButtonVariant::Primary,
+            }
+            SendButton
+            @on(on_send_clicked)
         ]
     }
 }
@@ -179,18 +177,11 @@ pub(crate) fn chat_ui() -> impl Scene {
         }
         ThemeBackgroundColor(tokens::WINDOW_BG)
         Children [
-            ({chat_messages_panel()}),
-            ({input_row()}),
+            @chat_messages_panel()
+            --
+            @input_row()
         ]
     }
-}
-
-/// `FeathersTextInput` hardcodes FiraSans, which has no CJK coverage. It supplies the font through a
-/// `template(..)`, and those are never merged by component type, so patching `TextFont` in the scene
-/// would insert it twice. The font has to be replaced once the scene is spawned instead.
-pub(crate) fn use_system_font(mut font: Single<&mut TextFont, With<ChatInput>>) {
-    font.font = FontSource::SystemUi;
-    font.font_size = FontSize::Px(UI_FONT_SIZE);
 }
 
 fn on_send_clicked(

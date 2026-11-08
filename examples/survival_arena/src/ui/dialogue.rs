@@ -29,7 +29,7 @@ pub(crate) struct DialogueMessageTitle;
 #[derive(Component, Clone, Default)]
 pub(crate) struct DialogueBody;
 
-#[derive(Component, Clone, Default)]
+#[derive(Component, Clone, Copy, Default)]
 pub(crate) struct DialogueMessageIndex(usize);
 
 #[derive(Component, Clone, Default)]
@@ -85,58 +85,56 @@ fn message_subpane(title: &str, body: &str, index: usize) -> impl Scene {
     let body = body.to_string();
     let index = DialogueMessageIndex(index);
     bsn! {
-        subpane()
+        @subpane()
         Node {
             width: percent(100),
         }
         Children [
-            subpane_header() Children [
-                (
-                    Text({title})
-                    ThemedText
-                    DialogueMessageTitle
-                    template_value(index.clone())
-                )
-            ],
-            (
-                subpane_body()
-                Children [(
-                    Node {
-                        width: percent(100),
-                    }
-                    Text({body})
-                    ThemedText
-                    DialogueBody
-                    template_value(index)
-                    TextLayout::new(Justify::Left, LineBreak::AnyCharacter)
-                    TextFont {
-                        font_size: FontSize::Px(UI_FONT_SIZE),
-                    }
-                )]
-            )
+            @subpane_header() Children [
+                Text({title})
+                ThemedText
+                DialogueMessageTitle
+                index
+            ]
+            --
+            @subpane_body()
+            Children [
+                Node {
+                    width: percent(100),
+                }
+                Text({body})
+                ThemedText
+                DialogueBody
+                index
+                TextLayout::new(Justify::Left, LineBreak::AnyCharacter)
+                TextFont {
+                    font_size: FontSize::Px(UI_FONT_SIZE),
+                }
+            ]
         ]
     }
 }
 
 fn dialogue_panel() -> impl Scene {
     bsn! {
-        subpane()
+        @subpane()
         Node {
             flex_grow: 1.0,
             min_height: px(0),
         }
         Children [
-            subpane_header() Children [(
+            @subpane_header() Children [
                 Text("Player -")
                 ThemedText
                 DialogueHeader
-            )],
-            subpane_body()
+            ]
+            --
+            @subpane_body()
             Node {
                 flex_grow: 1.0,
                 min_height: px(0),
             }
-            Children [(
+            Children [
                 Node {
                     flex_grow: 1.0,
                     min_height: px(0),
@@ -148,41 +146,38 @@ fn dialogue_panel() -> impl Scene {
                     },
                 }
                 Children [
-                    (
-                        #dialogue_scroll
+                    #dialogue_scroll
+                    Node {
+                        flex_grow: 1.0,
+                        min_height: px(0),
+                        overflow: Overflow::scroll_y(),
+                    }
+                    ScrollArea
+                    DialogueScrollArea
+                    AutoScrollToBottom
+                    Children [
                         Node {
-                            flex_grow: 1.0,
-                            min_height: px(0),
-                            overflow: Overflow::scroll_y(),
+                            width: percent(100),
+                            display: Display::Flex,
+                            flex_direction: FlexDirection::Column,
+                            row_gap: px(8),
                         }
-                        ScrollArea
-                        DialogueScrollArea
-                        AutoScrollToBottom
-                        Children [(
-                            Node {
-                                width: percent(100),
-                                display: Display::Flex,
-                                flex_direction: FlexDirection::Column,
-                                row_gap: px(8),
-                            }
-                            DialogueMessageList
-                        )]
-                    ),
-                    (
-                        Node {
-                            position_type: PositionType::Absolute,
-                            right: px(0),
-                            top: px(0),
-                            bottom: px(0),
-                            width: px(6),
-                        }
-                        @FeathersScrollbar {
-                            @target: #dialogue_scroll,
-                            @orientation: {ControlOrientation::Vertical}
-                        }
-                    )
+                        DialogueMessageList
+                    ]
+                    --
+                    Node {
+                        position_type: PositionType::Absolute,
+                        right: px(0),
+                        top: px(0),
+                        bottom: px(0),
+                        width: px(6),
+                    }
+                    @FeathersScrollbar {
+                        @target: #dialogue_scroll,
+                        @orientation: {ControlOrientation::Vertical}
+                    }
                 ]
-            )]
+            ]
         ]
     }
 }
@@ -197,28 +192,25 @@ pub(super) fn dialogue_section() -> impl Scene {
             row_gap: px(12),
         }
         Children [
-            ({dialogue_panel()}),
-            (
-                Node {
-                    display: Display::Flex,
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    column_gap: px(8),
+            @dialogue_panel()
+            --
+            Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                column_gap: px(8),
+            }
+            Children [
+                @FeathersButton {
+                    @caption: bsn! {
+                        Text("Continue Dialogue")
+                        ThemedText
+                    }
+                    @variant: ButtonVariant::Primary,
                 }
-                Children [
-                    (
-                        @FeathersButton {
-                            @caption: bsn! {
-                                Text("Continue Dialogue")
-                                ThemedText
-                            }
-                            @variant: ButtonVariant::Primary,
-                        }
-                        ContinueDialogueButton
-                        on(on_continue_dialogue)
-                    ),
-                ]
-            ),
+                ContinueDialogueButton
+                @on(on_continue_dialogue)
+            ]
         ]
     }
 }

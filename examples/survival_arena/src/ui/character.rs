@@ -58,45 +58,46 @@ fn detail_row(label: &str, value: String) -> impl Scene {
             justify_content: JustifyContent::SpaceBetween,
         }
         Children [
-            (
-                Text({label})
-                ThemedText
-                TextLayout::new(Justify::Left, LineBreak::NoWrap)
-                TextFont {
-                    font_size: FontSize::Px(UI_FONT_SIZE),
-                }
-            ),
-            (
-                Text({value})
-                ThemedText
-                TextLayout::new(Justify::Right, LineBreak::NoWrap)
-                TextFont {
-                    font_size: FontSize::Px(UI_FONT_SIZE),
-                }
-            ),
+            Text({label})
+            ThemedText
+            TextLayout::new(Justify::Left, LineBreak::NoWrap)
+            TextFont {
+                font_size: FontSize::Px(UI_FONT_SIZE),
+            }
+            --
+            Text({value})
+            ThemedText
+            TextLayout::new(Justify::Right, LineBreak::NoWrap)
+            TextFont {
+                font_size: FontSize::Px(UI_FONT_SIZE),
+            }
         ]
     }
 }
 
 pub(super) fn character_detail_panel() -> impl Scene {
     bsn! {
-        subpane()
+        @subpane()
         Children [
-            subpane_header() Children [
-                (Text("Selected Character") ThemedText)
-            ],
-            (
-                subpane_body()
-                CharacterDetailBody
-                Children [
-                    ({detail_row("ID", String::new())}),
-                    ({detail_row("Combat Power", String::new())}),
-                    ({detail_row("Moving Speed", String::new())}),
-                    ({detail_row("Coordinate", String::new())}),
-                    ({detail_row("Moving Target", String::new())}),
-                    ({detail_row("Dead", String::new())}),
-                ]
-            )
+            @subpane_header() Children [
+                Text("Selected Character") ThemedText
+            ]
+            --
+            @subpane_body()
+            CharacterDetailBody
+            Children [
+                @detail_row("ID", String::new())
+                --
+                @detail_row("Combat Power", String::new())
+                --
+                @detail_row("Moving Speed", String::new())
+                --
+                @detail_row("Coordinate", String::new())
+                --
+                @detail_row("Moving Target", String::new())
+                --
+                @detail_row("Dead", String::new())
+            ]
         ]
     }
 }
@@ -106,41 +107,40 @@ pub(super) fn character_list_row(entity: Entity, character: &Character) -> impl 
     bsn! {
         @FeathersListRow
         CharacterListItem(entity)
-        Children [(
+        Children [
             Text({label})
             ThemedText
-        )]
+        ]
     }
 }
 
 pub(super) fn character_list_panel(rows: impl SceneList) -> impl Scene {
     bsn! {
-        subpane()
+        @subpane()
         Node {
             flex_grow: 1.0,
             min_height: px(0),
         }
         Children [
-            subpane_header() Children [
-                (Text("Characters") ThemedText)
-            ],
-            (
-                subpane_body()
+            @subpane_header() Children [
+                Text("Characters") ThemedText
+            ]
+            --
+            @subpane_body()
+            Node {
+                flex_grow: 1.0,
+                min_height: px(0),
+            }
+            Children [
+                @FeathersListView {
+                    @rows: {Box::new(rows) as Box<dyn SceneList>}
+                }
                 Node {
                     flex_grow: 1.0,
                     min_height: px(0),
                 }
-                Children [(
-                    @FeathersListView {
-                        @rows: {Box::new(rows) as Box<dyn SceneList>}
-                    }
-                    Node {
-                        flex_grow: 1.0,
-                        min_height: px(0),
-                    }
-                    on(on_character_list_select)
-                )]
-            )
+                @on(on_character_list_select)
+            ]
         ]
     }
 }
@@ -176,7 +176,7 @@ fn on_character_list_select(
 }
 
 pub(super) fn on_character_map_click(
-    click: On<Pointer<Click>>,
+    click: On<PointerClick>,
     items: Query<(Entity, &CharacterListItem, Has<Selected>)>,
     mut selected: ResMut<SelectedCharacter>,
     mut commands: Commands,
@@ -252,14 +252,12 @@ pub(crate) fn update_character_sprites(
                 Visibility::Visible
             };
         }
-        if selection_changed {
-            if let Some(mut material) = materials.get_mut(&material.0) {
-                material.color = if selected.0 == Some(entity) {
-                    palette::ACCENT
-                } else {
-                    palette::LIGHT_GRAY_1
-                };
-            }
+        if selection_changed && let Some(mut material) = materials.get_mut(&material.0) {
+            material.color = if selected.0 == Some(entity) {
+                palette::ACCENT
+            } else {
+                palette::LIGHT_GRAY_1
+            };
         }
     }
 }

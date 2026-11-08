@@ -86,9 +86,7 @@ fn system(
             continue;
         }
 
-        let distance = self_character
-            .coordinate
-            .dist(&target_character.coordinate);
+        let distance = self_character.coordinate.dist(&target_character.coordinate);
         if distance >= 1.0 {
             call.respond(Output {
                 is_success: false,

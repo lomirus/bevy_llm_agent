@@ -3,6 +3,9 @@ name = "survival_arena"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 bevy = { workspace = true, features = ["2d", "ui", "bevy_feathers"] }
 bevy-llm-agent = { path = "../../" }

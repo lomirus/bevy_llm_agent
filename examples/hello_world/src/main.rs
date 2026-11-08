@@ -16,7 +16,11 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let agent = Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap();
     commands.spawn(Camera2d);
     let entity = commands
-        .spawn((Text::default(), agent, TextFont::from(FontSource::SystemUi)))
+        .spawn((
+            Text::default(),
+            agent,
+            TextFont::from(FontSource::system_ui()),
+        ))
         .id();
     sender.write(UserMessage::new(entity, "Hello!"));
 }

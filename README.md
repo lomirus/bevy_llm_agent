@@ -9,7 +9,7 @@ A Bevy plugin for integrating LLM agents into Bevy applications.
 
 | Bevy | bevy-llm-agent |
 |------|----------------|
-| 0.19 | 0.1 (WIP)      |
+| 0.20 | 0.1 (WIP)      |
 
 ## Basic Usage
 
@@ -54,9 +54,9 @@ export DEEPSEEK_API_KEY="sk-xxx"
 
 ```rust
 bsn! {
-    template_value(Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap())
+    Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap()
     AgentTools [
-        @GetWeather,
+        @GetWeather
     ]
 }
 ```

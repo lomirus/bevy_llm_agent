@@ -1,5 +1,5 @@
 use crate::{
-    agent::{Agent, AgentStatus, ApiDialect, DialogMessage, Thinking},
+    agent::{Agent, AgentStatus, DialogMessage},
     api::{self, DeltaResult, StreamOutcome},
     messages::{agent_message::AgentMessageDelta, user_message::UserMessage},
     plugin::RawToolCallSender,
@@ -12,28 +12,14 @@ use std::{
 };
 
 fn run_agent_loop(
-    dialog: &mut Vec<DialogMessage>,
-    api_dialect: ApiDialect,
-    model: String,
-    thinking: Thinking,
+    mut agent: Agent,
     tools: Vec<Tool>,
-    api_base_url: String,
-    api_key: String,
     raw_tool_invocation_sender: crossbeam_channel::Sender<RawToolCall>,
     tx: mpsc::Sender<DeltaResult>,
     entity: Entity,
 ) {
     loop {
-        match api::stream_response(
-            api_dialect,
-            dialog,
-            &model,
-            &thinking,
-            &tools,
-            &api_base_url,
-            &api_key,
-            &tx,
-        ) {
+        match api::stream_response(&mut agent, &tools, &tx) {
             Ok(StreamOutcome::Finished) => {
                 tx.send(Ok(AgentMessageDelta::Finish)).unwrap();
                 return;
@@ -43,7 +29,8 @@ fn run_agent_loop(
                 return;
             }
             Ok(StreamOutcome::ToolCalls) => {
-                let DialogMessage::Assistant { tool_calls, .. } = dialog.last().unwrap() else {
+                let DialogMessage::Assistant { tool_calls, .. } = agent.dialog.last().unwrap()
+                else {
                     unreachable!()
                 };
                 let tool_calls = tool_calls.clone();
@@ -71,7 +58,7 @@ fn run_agent_loop(
                     let result = tool_call_waiter.1.recv().unwrap();
                     let tool_call_id = tool_call_waiter.0;
                     api::emit_delta(
-                        dialog,
+                        &mut agent.dialog,
                         &tx,
                         AgentMessageDelta::ToolResult {
                             content: result,
@@ -115,29 +102,12 @@ pub(crate) fn read_user_message(
             Err(err) => panic!("{err}"),
         };
 
-        let api_dialect = agent.api_dialect;
-        let model = agent.model.to_owned();
-        let thinking = agent.thinking.to_owned();
-        let dialog = agent.dialog.to_owned();
-        let api_base_url = agent.api_base_url.to_owned();
-        let api_key = agent.api_key.to_owned();
+        let agent = agent.clone();
         let raw_tool_invocation_sender = raw_tool_invocation_sender.clone();
-        let entity = entity.clone();
+        let entity = *entity;
 
         thread::spawn(move || {
-            let mut dialog = dialog;
-            run_agent_loop(
-                &mut dialog,
-                api_dialect,
-                model,
-                thinking,
-                tools,
-                api_base_url,
-                api_key,
-                raw_tool_invocation_sender,
-                tx,
-                entity,
-            );
+            run_agent_loop(agent, tools, raw_tool_invocation_sender, tx, entity);
         });
     }
 }

@@ -3,6 +3,9 @@ name = "hello_world"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 bevy = { workspace = true, features = ["ui", "system_font_discovery"]}
 bevy-llm-agent = { path = "../../" }

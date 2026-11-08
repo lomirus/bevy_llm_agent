@@ -3,6 +3,9 @@ name = "counter"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 bevy = { workspace = true, features = ["bevy_log", "bevy_scene", "bevy_asset"]}
 bevy-llm-agent = { path = "../../" }

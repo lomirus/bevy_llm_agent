@@ -13,7 +13,7 @@ use bevy_llm_agent::{
 };
 
 use auto_scroll::AutoScrollToBottomPlugin;
-use ui::{chat_ui, enable_send_button, update_chat_messages, use_system_font};
+use ui::{chat_ui, enable_send_button, update_chat_messages};
 
 fn setup(mut commands: Commands) {
     commands.spawn((Camera2d, IsDefaultUiCamera));
@@ -36,7 +36,7 @@ fn main() {
             LlmAgentPlugin,
             AutoScrollToBottomPlugin,
         ))
-        .add_systems(Startup, (setup, use_system_font).chain())
+        .add_systems(Startup, setup)
         .add_systems(Update, (update_chat_messages, enable_send_button))
         .run();
 }

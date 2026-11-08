@@ -92,7 +92,10 @@ fn expand_agent_tool(args: AgentToolArgs, item: ItemStruct) -> Result<TokenStrea
 
         impl #impl_generics #name #type_generics #where_clause {
             fn scene() -> impl #bevy::prelude::Scene {
-                #bevy::prelude::template_value(#runtime::tool::Tool::of::<Self>())
+                #bevy::scene::InsertTemplate {
+                    type_id: ::std::any::TypeId::of::<#runtime::tool::Tool>(),
+                    template: ::std::boxed::Box::new(#runtime::tool::Tool::of::<Self>()),
+                }
             }
         }
 

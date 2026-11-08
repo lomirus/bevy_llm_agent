@@ -40,16 +40,22 @@ fn system(mut calls: MessageMutator<ToolCall<MoveTo>>, mut character_query: Quer
         if call.args.coordinate.x <= -10.0 || call.args.coordinate.x >= 10.0 {
             call.respond(Output {
                 is_success: false,
-                err_msg: Some("The target's horizontal coordinate must be within (-10, 10)".to_string()),
-            }).unwrap();
+                err_msg: Some(
+                    "The target's horizontal coordinate must be within (-10, 10)".to_string(),
+                ),
+            })
+            .unwrap();
             continue;
         }
 
         if call.args.coordinate.y <= -10.0 || call.args.coordinate.y >= 10.0 {
             call.respond(Output {
                 is_success: false,
-                err_msg: Some("The target's vertical coordinate must be within (-10, 10)".to_string()),
-            }).unwrap();
+                err_msg: Some(
+                    "The target's vertical coordinate must be within (-10, 10)".to_string(),
+                ),
+            })
+            .unwrap();
             continue;
         }
 

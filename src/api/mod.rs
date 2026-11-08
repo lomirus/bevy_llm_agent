@@ -4,7 +4,7 @@ mod responses;
 use std::sync::mpsc;
 
 use crate::{
-    agent::{self, ApiDialect, DialogMessage, Thinking},
+    agent::{self, Agent, ApiDialect, DialogMessage},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
     tool::Tool,
 };
@@ -17,15 +17,18 @@ pub(crate) enum StreamOutcome {
 }
 
 pub(crate) fn stream_response(
-    api_dialect: ApiDialect,
-    dialog: &mut Vec<DialogMessage>,
-    model: &str,
-    thinking: &Thinking,
+    agent: &mut Agent,
     tools: &[Tool],
-    api_base_url: &str,
-    api_key: &str,
     tx: &mpsc::Sender<DeltaResult>,
 ) -> Result<StreamOutcome, AgentMessageError> {
+    let Agent {
+        api_dialect,
+        dialog,
+        model,
+        thinking,
+        api_base_url,
+        api_key,
+    } = agent;
     match api_dialect {
         ApiDialect::DeepSeekChatCompletions | ApiDialect::MoonshotChatCompletions => {
             chat_completion::stream_response(

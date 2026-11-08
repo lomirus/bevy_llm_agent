@@ -37,16 +37,7 @@ fn main() {
         .add_agent_tool::<GetCurrentInfo>()
         .add_agent_tool::<MoveTo>()
         .add_agent_tool::<DevourCharacter>()
-        .add_systems(
-            Startup,
-            (
-                ui::setup,
-                ApplyDeferred,
-                ui::attach_map_viewport,
-                ui::select_strongest_character,
-            )
-                .chain(),
-        )
+        .add_systems(Startup, (ui::setup, ui::select_strongest_character).chain())
         .add_systems(
             Update,
             (

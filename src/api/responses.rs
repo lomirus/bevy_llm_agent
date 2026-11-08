@@ -246,9 +246,7 @@ fn consume_sse_stream(
                     Some(reason) => Err(AgentMessageError::Other(format!(
                         "response incomplete: {reason}"
                     ))),
-                    None => Err(AgentMessageError::Other(
-                        "response incomplete".to_owned(),
-                    )),
+                    None => Err(AgentMessageError::Other("response incomplete".to_owned())),
                 };
             }
             Event::Failed { response } => {

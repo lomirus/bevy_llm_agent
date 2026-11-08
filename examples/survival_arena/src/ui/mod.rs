@@ -11,4 +11,4 @@ pub(crate) use character::{
     update_character_sprites,
 };
 pub(crate) use dialogue::{DialogueView, sync_continue_button, update_dialogue_panel};
-pub(crate) use scene::{attach_map_viewport, setup};
+pub(crate) use scene::setup;
