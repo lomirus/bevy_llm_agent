@@ -24,8 +24,8 @@ impl Agent {
     /// ```no_run
     /// use bevy_llm_agent::{agent::Agent, provider::deepseek};
     ///
-    /// let agent = Agent::builder(deepseek::V4_FLASH)
-    ///     .thinking(deepseek::FlashThinking::Off)
+    /// let agent = Agent::builder(deepseek::FLASH)
+    ///     .thinking(deepseek::Thinking::Off)
     ///     .build()
     ///     .unwrap();
     /// ```

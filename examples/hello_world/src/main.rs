@@ -13,8 +13,8 @@ use bevy_llm_agent::{
 };
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let agent = Agent::builder(deepseek::V4_FLASH)
-        .thinking(deepseek::FlashThinking::Off)
+    let agent = Agent::builder(deepseek::FLASH)
+        .thinking(deepseek::Thinking::Off)
         .build()
         .unwrap();
     commands.spawn(Camera2d);

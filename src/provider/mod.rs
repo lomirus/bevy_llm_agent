@@ -30,7 +30,7 @@ impl<'a, T: Thinking> ModelPreset<'a, T> {
     /// ```
     /// use bevy_llm_agent::{agent::ApiDialect, provider::{ModelPreset, deepseek}};
     ///
-    /// let preset = ModelPreset::<deepseek::ProThinking>::new(
+    /// let preset = ModelPreset::<deepseek::Thinking>::new(
     ///     ApiDialect::DeepSeekChatCompletions,
     ///     "https://api.deepseek.com",
     ///     "deepseek-v4-pro",

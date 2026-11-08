@@ -14,8 +14,8 @@ use ui::{chat_ui, enable_send_button, update_chat_messages};
 fn setup(mut commands: Commands) {
     commands.spawn((Camera2d, IsDefaultUiCamera));
     commands.spawn(
-        Agent::builder(deepseek::V4_FLASH)
-            .thinking(deepseek::FlashThinking::Off)
+        Agent::builder(deepseek::FLASH)
+            .thinking(deepseek::Thinking::Off)
             .build()
             .unwrap(),
     );

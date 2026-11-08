@@ -1,12 +1,12 @@
-use super::{ModelPreset, Reasoning, ReasoningEffort, Sealed, Thinking};
+use super::{ModelPreset, Reasoning, ReasoningEffort, Sealed};
 use crate::agent::ApiDialect;
 
 const BASE_URL: &str = "https://api.deepseek.com";
 const API_KEY_ENV: &str = "DEEPSEEK_API_KEY";
 
-/// Thinking options for [`V4_FLASH`].
+/// Thinking options for [`FLASH`] and [`V4_PRO`].
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub enum FlashThinking {
+pub enum Thinking {
     Off,
     Low,
     #[default]
@@ -14,9 +14,9 @@ pub enum FlashThinking {
     Max,
 }
 
-impl Thinking for FlashThinking {}
+impl super::Thinking for Thinking {}
 
-impl Sealed for FlashThinking {
+impl Sealed for Thinking {
     fn reasoning(self) -> Reasoning {
         match self {
             Self::Off => Reasoning::Disabled,
@@ -27,37 +27,16 @@ impl Sealed for FlashThinking {
     }
 }
 
-/// Thinking options for [`V4_PRO`].
-#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub enum ProThinking {
-    Off,
-    #[default]
-    High,
-    Max,
-}
-
-impl Thinking for ProThinking {}
-
-impl Sealed for ProThinking {
-    fn reasoning(self) -> Reasoning {
-        match self {
-            Self::Off => Reasoning::Disabled,
-            Self::High => Reasoning::Enabled(Some(ReasoningEffort::High)),
-            Self::Max => Reasoning::Enabled(Some(ReasoningEffort::Max)),
-        }
-    }
-}
-
-/// `deepseek-v4-flash`.
-pub const V4_FLASH: ModelPreset<'static, FlashThinking> = ModelPreset::new(
+/// `deepseek-flash`.
+pub const FLASH: ModelPreset<'static, Thinking> = ModelPreset::new(
     ApiDialect::DeepSeekResponses,
     BASE_URL,
-    "deepseek-v4-flash",
+    "deepseek-flash",
     API_KEY_ENV,
 );
 
 /// `deepseek-v4-pro`.
-pub const V4_PRO: ModelPreset<'static, ProThinking> = ModelPreset::new(
+pub const V4_PRO: ModelPreset<'static, Thinking> = ModelPreset::new(
     ApiDialect::DeepSeekChatCompletions,
     BASE_URL,
     "deepseek-v4-pro",

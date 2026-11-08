@@ -37,7 +37,7 @@ impl<'a, T: Thinking> AgentBuilder<'a, T> {
     /// use bevy_llm_agent::{agent::Agent, provider::{deepseek, moonshot}};
     ///
     /// // `kimi-k3` takes `moonshot::K3Thinking`, which has no `Off`.
-    /// Agent::builder(moonshot::K3).thinking(deepseek::FlashThinking::Off);
+    /// Agent::builder(moonshot::K3).thinking(deepseek::Thinking::Off);
     /// ```
     pub fn thinking(mut self, thinking: T) -> Self {
         self.thinking = thinking;
