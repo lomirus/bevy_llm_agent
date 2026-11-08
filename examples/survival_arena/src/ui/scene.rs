@@ -11,11 +11,7 @@ use bevy::{
     scene::Ready,
     ui::widget::ViewportNode,
 };
-use bevy_llm_agent::{
-    agent::{Agent, DialogMessage},
-    provider::deepseek,
-    tool::AgentTools,
-};
+use bevy_llm_agent::{prelude::*, provider::deepseek};
 use rand::random_range;
 
 use crate::{
@@ -43,19 +39,12 @@ pub(crate) struct MapViewport;
 #[derive(Component, Clone, Default)]
 pub(crate) struct MapCamera;
 
-fn character_agent(id: u8) -> Agent {
-    let mut agent = Agent::builder(deepseek::FLASH)
+fn character_scene(character: Character) -> impl Scene {
+    let agent = Agent::builder(deepseek::FLASH)
         .thinking(deepseek::Thinking::Off)
+        .system_prompt(character_system_prompt(character.id))
         .build()
         .unwrap();
-    agent
-        .dialog
-        .push(DialogMessage::system(&character_system_prompt(id)));
-    agent
-}
-
-fn character_scene(character: Character) -> impl Scene {
-    let agent = character_agent(character.id);
     let transform = Transform::from_xyz(character.coordinate.x, character.coordinate.y, 0.0);
     let render_layers = RenderLayers::layer(MAP_RENDER_LAYER);
     bsn! {

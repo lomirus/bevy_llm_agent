@@ -6,16 +6,7 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
-use bevy_llm_agent::{
-    LlmAgentPlugin,
-    agent::Agent,
-    messages::{
-        agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
-        user_message::UserMessage,
-    },
-    provider::deepseek,
-    tool::AgentTools,
-};
+use bevy_llm_agent::{prelude::*, provider::deepseek};
 use tools::{AddToCounter, GetCounter};
 
 #[derive(Resource)]

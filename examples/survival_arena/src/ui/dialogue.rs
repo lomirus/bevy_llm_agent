@@ -8,7 +8,7 @@ use bevy::{
     ui::{InteractionDisabled, Overflow},
     ui_widgets::{ControlOrientation, ScrollArea},
 };
-use bevy_llm_agent::agent::{Agent, DialogMessage};
+use bevy_llm_agent::prelude::*;
 
 use crate::game::{Character, GamePhase, on_continue_dialogue};
 

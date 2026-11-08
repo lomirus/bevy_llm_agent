@@ -18,9 +18,9 @@ pub enum DialogMessage {
 }
 
 impl DialogMessage {
-    pub fn system(content: &str) -> Self {
+    pub fn system(content: impl Into<String>) -> Self {
         Self::System {
-            content: content.to_owned(),
+            content: content.into(),
         }
     }
 }

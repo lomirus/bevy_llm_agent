@@ -15,10 +15,7 @@ use bevy::{
     ui::{InteractionDisabled, Overflow},
     ui_widgets::{Activate, ControlOrientation, ScrollArea},
 };
-use bevy_llm_agent::{
-    agent::{Agent, DialogMessage, Responding},
-    messages::user_message::UserMessage,
-};
+use bevy_llm_agent::prelude::*;
 
 use crate::auto_scroll::AutoScrollToBottom;
 

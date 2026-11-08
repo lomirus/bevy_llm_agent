@@ -1,6 +1,10 @@
 mod chat_completion;
 mod responses;
 
+use std::io::{BufRead, BufReader};
+
+use serde::Serialize;
+
 use crate::{
     agent::{Agent, ApiDialect},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
@@ -27,29 +31,9 @@ pub(crate) fn stream_response(
     tools: &[Tool],
     tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
-    let Agent {
-        api_dialect,
-        dialog,
-        model,
-        reasoning,
-        api_base_url,
-        api_key,
-    } = agent;
-    match api_dialect {
-        ApiDialect::DeepSeekChatCompletions | ApiDialect::MoonshotChatCompletions => {
-            chat_completion::stream_response(
-                dialog,
-                model,
-                *reasoning,
-                tools,
-                api_base_url,
-                api_key,
-                tx,
-            )
-        }
-        ApiDialect::DeepSeekResponses => {
-            responses::stream_response(dialog, model, *reasoning, tools, api_base_url, api_key, tx)
-        }
+    match agent.api_dialect {
+        ApiDialect::ChatCompletions => chat_completion::stream_response(agent, tools, tx),
+        ApiDialect::Responses => responses::stream_response(agent, tools, tx),
     }
 }
 
@@ -57,4 +41,40 @@ pub(crate) fn stream_response(
 pub(crate) fn emit(tx: &EventSender, delta: AgentMessageDelta) -> Result<(), AgentMessageError> {
     tx.send(StreamEvent::Delta(delta))
         .map_err(|_| AgentMessageError::Other("the agent is no longer listening".to_owned()))
+}
+
+/// POST `body` to the agent's API and iterate over the `data` of the server-sent events.
+fn post_sse(
+    agent: &Agent,
+    path: &str,
+    body: &impl Serialize,
+) -> Result<impl Iterator<Item = Result<String, AgentMessageError>>, AgentMessageError> {
+    let url = format!("{}{path}", agent.api_base_url);
+    let mut response = ureq::post(&url)
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .header("Authorization", format!("Bearer {}", agent.api_key))
+        .send_json(body)
+        .map_err(other)?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.body_mut().read_to_string().unwrap_or_default();
+        return Err(AgentMessageError::Other(if body.is_empty() {
+            format!("http status: {status}")
+        } else {
+            body
+        }));
+    }
+
+    let lines = BufReader::new(response.into_body().into_reader()).lines();
+    Ok(lines.filter_map(|line| match line {
+        Ok(line) => line.strip_prefix("data: ").map(|data| Ok(data.to_owned())),
+        Err(error) => Some(Err(other(error))),
+    }))
+}
+
+fn other(error: impl ToString) -> AgentMessageError {
+    AgentMessageError::Other(error.to_string())
 }

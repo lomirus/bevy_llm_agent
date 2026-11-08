@@ -6,7 +6,7 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
-use bevy_llm_agent::{LlmAgentPlugin, agent::Agent, provider::deepseek};
+use bevy_llm_agent::{prelude::*, provider::deepseek};
 
 use auto_scroll::AutoScrollToBottomPlugin;
 use ui::{chat_ui, enable_send_button, update_chat_messages};

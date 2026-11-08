@@ -1,5 +1,5 @@
 use bevy::prelude::*;
-use bevy_llm_agent::{agent_tool, tool::ToolInput};
+use bevy_llm_agent::prelude::*;
 use schemars::JsonSchema;
 use serde::Deserialize;
 

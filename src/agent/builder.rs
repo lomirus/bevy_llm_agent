@@ -1,5 +1,5 @@
 use crate::{
-    agent::Agent,
+    agent::{Agent, DialogMessage},
     provider::{ModelPreset, Thinking},
 };
 use std::{env, error::Error, fmt};
@@ -11,6 +11,7 @@ pub struct AgentBuilder<'a, T> {
     base_url: String,
     thinking: T,
     api_key_source: ApiKeySource,
+    system_prompt: Option<String>,
 }
 
 #[derive(Clone)]
@@ -26,6 +27,7 @@ impl<'a, T: Thinking> AgentBuilder<'a, T> {
             base_url: preset.base_url.to_owned(),
             thinking: T::default(),
             api_key_source: ApiKeySource::Environment(preset.api_key_env.to_owned()),
+            system_prompt: None,
         }
     }
 
@@ -41,6 +43,12 @@ impl<'a, T: Thinking> AgentBuilder<'a, T> {
     /// ```
     pub fn thinking(mut self, thinking: T) -> Self {
         self.thinking = thinking;
+        self
+    }
+
+    /// Start the dialog with a system prompt.
+    pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
+        self.system_prompt = Some(prompt.into());
         self
     }
 
@@ -81,7 +89,11 @@ impl<'a, T: Thinking> AgentBuilder<'a, T> {
             api_dialect: self.preset.api_dialect,
             model: self.preset.model.to_owned(),
             reasoning: self.thinking.reasoning(),
-            dialog: Vec::new(),
+            dialog: self
+                .system_prompt
+                .into_iter()
+                .map(DialogMessage::system)
+                .collect(),
             api_base_url: self.base_url.trim_end_matches('/').to_owned(),
             api_key,
         })

@@ -13,6 +13,8 @@ A Bevy plugin for integrating LLM agents into Bevy applications.
 
 ## Basic Usage
 
+The types used below are available through `use bevy_llm_agent::prelude::*;`.
+
 ### Create a Tool (Optional)
 
 ```rust

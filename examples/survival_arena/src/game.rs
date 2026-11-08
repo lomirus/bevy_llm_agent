@@ -1,8 +1,5 @@
 use bevy::{prelude::*, ui_widgets::Activate};
-use bevy_llm_agent::{
-    agent::Responding,
-    messages::{agent_message::AgentMessage, user_message::UserMessage},
-};
+use bevy_llm_agent::prelude::*;
 use rand::random_range;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

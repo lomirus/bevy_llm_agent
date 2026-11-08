@@ -1,101 +1,23 @@
-use std::io::{BufRead, BufReader};
-
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    agent::DialogMessage,
-    api::{EventSender, StreamOutcome, emit},
+    agent::{Agent, DialogMessage},
+    api::{EventSender, StreamOutcome, emit, other, post_sse},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
     provider::Reasoning,
-    tool::Tool as AgentTool,
+    tool::Tool,
 };
 
 pub(super) fn stream_response(
-    dialog: &[DialogMessage],
-    model: &str,
-    reasoning: Reasoning,
-    tools: &[AgentTool],
-    api_base_url: &str,
-    api_key: &str,
-    tx: &EventSender,
-) -> Result<StreamOutcome, AgentMessageError> {
-    let body = build_request(dialog, model, reasoning, tools);
-
-    let url = format!("{api_base_url}/chat/completions");
-    let mut response = match ureq::post(&url)
-        .config()
-        .http_status_as_error(false)
-        .build()
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {api_key}"))
-        .send_json(body)
-    {
-        Ok(response) => response,
-        Err(error) => return Err(AgentMessageError::Other(error.to_string())),
-    };
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.body_mut().read_to_string().unwrap_or_default();
-        let message = if body.is_empty() {
-            format!("http status: {status}")
-        } else {
-            body
-        };
-        return Err(AgentMessageError::Other(message));
-    }
-
-    consume_sse_stream(BufReader::new(response.body_mut().as_reader()), tx)
-}
-
-fn build_request(
-    dialog: &[DialogMessage],
-    model: &str,
-    reasoning: Reasoning,
-    tools: &[AgentTool],
-) -> Request {
-    let (thinking_type, reasoning_effort) = match reasoning {
-        Reasoning::Disabled => ("disabled", None),
-        Reasoning::Enabled(effort) => ("enabled", effort.map(|effort| effort.as_str())),
-    };
-
-    Request {
-        messages: dialog.iter().map(|msg| msg.clone().into()).collect(),
-        model: model.to_owned(),
-        thinking: Thinking {
-            r#type: thinking_type,
-        },
-        reasoning_effort,
-        response_format: ResponseFormat {
-            r#type: "text".to_owned(),
-        },
-        stream: true,
-        tools: tools
-            .iter()
-            .map(|tool| Tool {
-                r#type: "function".to_owned(),
-                function: ToolFunction {
-                    description: tool.description.clone(),
-                    name: tool.name.clone(),
-                    parameters: tool.parameters.clone(),
-                },
-            })
-            .collect(),
-    }
-}
-
-fn consume_sse_stream(
-    reader: impl BufRead,
+    agent: &Agent,
+    tools: &[Tool],
     tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
     let mut finish_reason = None;
     let mut tool_call_ids = Vec::<Option<String>>::new();
 
-    for line in reader.lines() {
-        let line = line.map_err(|error| AgentMessageError::Other(error.to_string()))?;
-        let Some(data) = line.strip_prefix("data: ") else {
-            continue;
-        };
+    for data in post_sse(agent, "/chat/completions", &build_request(agent, tools))? {
+        let data = data?;
         if data == "[DONE]" {
             use FinishReason::*;
             return match finish_reason {
@@ -111,46 +33,35 @@ fn consume_sse_stream(
                 )),
             };
         }
-        let data: Response = serde_json::from_str(data)
-            .map_err(|error| AgentMessageError::Other(error.to_string()))?;
-        if data.choices.len() != 1 {
-            return Err(AgentMessageError::Other(format!(
+        let Response { choices } = serde_json::from_str(&data).map_err(other)?;
+        let [choice] = <[Choice; 1]>::try_from(choices).map_err(|choices| {
+            AgentMessageError::Other(format!(
                 "expected one completion choice, got {}",
-                data.choices.len()
-            )));
+                choices.len()
+            ))
+        })?;
+        if let Some(reasoning_content) = choice.delta.reasoning_content {
+            emit(tx, AgentMessageDelta::ReasoningContent(reasoning_content))?;
         }
-        let choice = &data.choices[0];
-        if let Some(reasoning_content) = &choice.delta.reasoning_content {
+        if let Some(content) = choice.delta.content {
+            emit(tx, AgentMessageDelta::Content(content))?;
+        }
+        for tool_call in choice.delta.tool_calls.into_iter().flatten() {
+            let index = tool_call.index.unwrap_or_default();
+            if tool_call_ids.len() <= index {
+                tool_call_ids.resize(index + 1, None);
+            }
+            if let Some(id) = tool_call.id {
+                tool_call_ids[index] = Some(id);
+            }
             emit(
                 tx,
-                AgentMessageDelta::ReasoningContent(reasoning_content.to_owned()),
+                AgentMessageDelta::ToolCall {
+                    name: tool_call.function.name.unwrap_or_default(),
+                    arguments: tool_call.function.arguments,
+                    tool_call_id: tool_call_ids[index].clone().unwrap_or_default(),
+                },
             )?;
-        }
-        if let Some(content) = &choice.delta.content {
-            emit(tx, AgentMessageDelta::Content(content.to_owned()))?;
-        }
-        if let Some(tool_calls) = &choice.delta.tool_calls {
-            for tool_call in tool_calls {
-                let index = tool_call.index.unwrap_or_default();
-                if tool_call_ids.len() <= index {
-                    tool_call_ids.resize(index + 1, None);
-                }
-                if let Some(id) = &tool_call.id {
-                    tool_call_ids[index] = Some(id.clone());
-                }
-                emit(
-                    tx,
-                    AgentMessageDelta::ToolCall {
-                        name: tool_call.function.name.clone().unwrap_or_default(),
-                        arguments: tool_call.function.arguments.clone(),
-                        tool_call_id: tool_call
-                            .id
-                            .clone()
-                            .or_else(|| tool_call_ids[index].clone())
-                            .unwrap_or_default(),
-                    },
-                )?;
-            }
         }
         if let Some(reason) = choice.finish_reason {
             finish_reason = Some(reason);
@@ -162,87 +73,98 @@ fn consume_sse_stream(
     ))
 }
 
+fn build_request<'a>(agent: &'a Agent, tools: &'a [Tool]) -> Request<'a> {
+    let (thinking_type, reasoning_effort) = match agent.reasoning {
+        Reasoning::Disabled => ("disabled", None),
+        Reasoning::Enabled(effort) => ("enabled", effort.map(|effort| effort.as_str())),
+    };
+
+    Request {
+        messages: agent.dialog.iter().map(Message::from).collect(),
+        model: &agent.model,
+        thinking: Thinking {
+            r#type: thinking_type,
+        },
+        reasoning_effort,
+        response_format: ResponseFormat { r#type: "text" },
+        stream: true,
+        tools: tools
+            .iter()
+            .map(|tool| RequestTool {
+                r#type: "function",
+                function: RequestFunction {
+                    description: &tool.description,
+                    name: &tool.name,
+                    parameters: &tool.parameters,
+                },
+            })
+            .collect(),
+    }
+}
+
 #[derive(Serialize)]
-struct Request {
-    messages: Vec<Message>,
-    model: String,
+struct Request<'a> {
+    messages: Vec<Message<'a>>,
+    model: &'a str,
     thinking: Thinking,
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_effort: Option<&'static str>,
     response_format: ResponseFormat,
     stream: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    tools: Vec<Tool>,
+    tools: Vec<RequestTool<'a>>,
 }
 
 #[derive(Serialize)]
-struct Message {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning_content: Option<String>,
-    content: String,
-    role: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tool_call_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    tool_calls: Option<Vec<ToolCall>>,
+#[serde(tag = "role", rename_all = "lowercase")]
+enum Message<'a> {
+    System {
+        content: &'a str,
+    },
+    User {
+        content: &'a str,
+    },
+    Assistant {
+        content: &'a str,
+        #[serde(skip_serializing_if = "str::is_empty")]
+        reasoning_content: &'a str,
+        // API rejects `"tool_calls": []`; omit the field when there are none.
+        #[serde(skip_serializing_if = "Vec::is_empty")]
+        tool_calls: Vec<RequestToolCall<'a>>,
+    },
+    Tool {
+        content: &'a str,
+        tool_call_id: &'a str,
+    },
 }
 
-impl From<DialogMessage> for Message {
-    fn from(value: DialogMessage) -> Self {
-        match value {
-            DialogMessage::System { content } => Self {
-                role: "system".to_owned(),
-                reasoning_content: None,
-                content,
-                tool_call_id: None,
-                tool_calls: None,
-            },
-            DialogMessage::User { content } => Self {
-                role: "user".to_owned(),
-                reasoning_content: None,
-                content,
-                tool_call_id: None,
-                tool_calls: None,
-            },
+impl<'a> From<&'a DialogMessage> for Message<'a> {
+    fn from(message: &'a DialogMessage) -> Self {
+        match message {
+            DialogMessage::System { content } => Self::System { content },
+            DialogMessage::User { content } => Self::User { content },
             DialogMessage::Assistant {
                 content,
                 reasoning_content,
                 tool_calls,
-            } => Self {
-                role: "assistant".to_owned(),
-                reasoning_content: if reasoning_content.is_empty() {
-                    None
-                } else {
-                    Some(reasoning_content)
-                },
+            } => Self::Assistant {
                 content,
-                tool_call_id: None,
-                // API rejects `"tool_calls": []`; omit the field when there are none.
-                tool_calls: if tool_calls.is_empty() {
-                    None
-                } else {
-                    Some(
-                        tool_calls
-                            .into_iter()
-                            .map(|tool_call| ToolCall {
-                                index: None,
-                                id: Some(tool_call.id),
-                                r#type: Some("function".to_owned()),
-                                function: ToolCallFunction {
-                                    name: Some(tool_call.name),
-                                    arguments: tool_call.arguments,
-                                },
-                            })
-                            .collect(),
-                    )
-                },
+                reasoning_content,
+                tool_calls: tool_calls
+                    .iter()
+                    .map(|tool_call| RequestToolCall {
+                        id: &tool_call.id,
+                        r#type: "function",
+                        function: RequestToolCallFunction {
+                            name: &tool_call.name,
+                            arguments: &tool_call.arguments,
+                        },
+                    })
+                    .collect(),
             },
-            DialogMessage::Tool { id, result } => Self {
-                role: "tool".to_owned(),
-                reasoning_content: None,
+            DialogMessage::Tool { id, result } => Self::Tool {
                 content: result,
-                tool_call_id: Some(id),
-                tool_calls: None,
+                tool_call_id: id,
             },
         }
     }
@@ -255,35 +177,33 @@ struct Thinking {
 
 #[derive(Serialize)]
 struct ResponseFormat {
-    r#type: String,
+    r#type: &'static str,
 }
 
-#[derive(Serialize, Clone)]
-struct Tool {
-    r#type: String,
-    function: ToolFunction,
+#[derive(Serialize)]
+struct RequestTool<'a> {
+    r#type: &'static str,
+    function: RequestFunction<'a>,
 }
 
-#[derive(Serialize, Clone)]
-struct ToolFunction {
-    description: String,
-    name: String,
-    parameters: serde_json::Value,
+#[derive(Serialize)]
+struct RequestFunction<'a> {
+    description: &'a str,
+    name: &'a str,
+    parameters: &'a serde_json::Value,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-struct ToolCall {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    index: Option<usize>,
-    id: Option<String>,
-    r#type: Option<String>,
-    function: ToolCallFunction,
+#[derive(Serialize)]
+struct RequestToolCall<'a> {
+    id: &'a str,
+    r#type: &'static str,
+    function: RequestToolCallFunction<'a>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-struct ToolCallFunction {
-    name: Option<String>,
-    arguments: String,
+#[derive(Serialize)]
+struct RequestToolCallFunction<'a> {
+    name: &'a str,
+    arguments: &'a str,
 }
 
 #[derive(Deserialize)]
@@ -301,7 +221,21 @@ struct Choice {
 struct Delta {
     content: Option<String>,
     reasoning_content: Option<String>,
-    tool_calls: Option<Vec<ToolCall>>,
+    tool_calls: Option<Vec<ToolCallDelta>>,
+}
+
+#[derive(Deserialize)]
+struct ToolCallDelta {
+    index: Option<usize>,
+    id: Option<String>,
+    function: ToolCallFunctionDelta,
+}
+
+#[derive(Deserialize)]
+struct ToolCallFunctionDelta {
+    name: Option<String>,
+    #[serde(default)]
+    arguments: String,
 }
 
 #[derive(Clone, Copy, Deserialize)]

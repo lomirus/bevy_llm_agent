@@ -2,15 +2,7 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
-use bevy_llm_agent::{
-    LlmAgentPlugin,
-    agent::Agent,
-    messages::{
-        agent_message::{AgentMessage, AgentMessageDelta},
-        user_message::UserMessage,
-    },
-    provider::deepseek,
-};
+use bevy_llm_agent::{prelude::*, provider::deepseek};
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let agent = Agent::builder(deepseek::FLASH)

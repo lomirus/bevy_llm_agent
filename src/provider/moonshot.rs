@@ -64,7 +64,7 @@ impl Sealed for K2_6Thinking {
 
 /// `kimi-k3`.
 pub const K3: ModelPreset<'static, K3Thinking> = ModelPreset::new(
-    ApiDialect::MoonshotChatCompletions,
+    ApiDialect::ChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k3",
     API_KEY_ENV,
@@ -72,7 +72,7 @@ pub const K3: ModelPreset<'static, K3Thinking> = ModelPreset::new(
 
 /// `kimi-k3.1-pro`.
 pub const K3_1_PRO: ModelPreset<'static, K3Thinking> = ModelPreset::new(
-    ApiDialect::MoonshotChatCompletions,
+    ApiDialect::ChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k3.1-pro",
     API_KEY_ENV,
@@ -80,7 +80,7 @@ pub const K3_1_PRO: ModelPreset<'static, K3Thinking> = ModelPreset::new(
 
 /// `kimi-k3.1-pro-highspeed`.
 pub const K3_1_PRO_HIGHSPEED: ModelPreset<'static, K3Thinking> = ModelPreset::new(
-    ApiDialect::MoonshotChatCompletions,
+    ApiDialect::ChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k3.1-pro-highspeed",
     API_KEY_ENV,
@@ -88,7 +88,7 @@ pub const K3_1_PRO_HIGHSPEED: ModelPreset<'static, K3Thinking> = ModelPreset::ne
 
 /// `kimi-k2.7-code`.
 pub const K2_7_CODE: ModelPreset<'static, K2_7Thinking> = ModelPreset::new(
-    ApiDialect::MoonshotChatCompletions,
+    ApiDialect::ChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k2.7-code",
     API_KEY_ENV,
@@ -96,7 +96,7 @@ pub const K2_7_CODE: ModelPreset<'static, K2_7Thinking> = ModelPreset::new(
 
 /// `kimi-k2.7-code-highspeed`.
 pub const K2_7_CODE_HIGHSPEED: ModelPreset<'static, K2_7Thinking> = ModelPreset::new(
-    ApiDialect::MoonshotChatCompletions,
+    ApiDialect::ChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k2.7-code-highspeed",
     API_KEY_ENV,
@@ -104,7 +104,7 @@ pub const K2_7_CODE_HIGHSPEED: ModelPreset<'static, K2_7Thinking> = ModelPreset:
 
 /// `kimi-k2.6`.
 pub const K2_6: ModelPreset<'static, K2_6Thinking> = ModelPreset::new(
-    ApiDialect::MoonshotChatCompletions,
+    ApiDialect::ChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k2.6",
     API_KEY_ENV,
@@ -112,7 +112,7 @@ pub const K2_6: ModelPreset<'static, K2_6Thinking> = ModelPreset::new(
 
 /// China API endpoint presets.
 pub mod china {
-    use super::{CHINA_BASE_URL, K2_7Thinking, K2_6Thinking, K3Thinking, ModelPreset};
+    use super::{CHINA_BASE_URL, K2_6Thinking, K2_7Thinking, K3Thinking, ModelPreset};
 
     pub const K3: ModelPreset<'static, K3Thinking> = ModelPreset {
         base_url: CHINA_BASE_URL,

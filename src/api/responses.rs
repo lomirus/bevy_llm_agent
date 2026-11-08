@@ -1,157 +1,24 @@
-use std::{
-    collections::HashMap,
-    io::{BufRead, BufReader},
-};
+use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    agent::DialogMessage,
-    api::{EventSender, StreamOutcome, emit},
+    agent::{Agent, DialogMessage},
+    api::{EventSender, StreamOutcome, emit, other, post_sse},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
     provider::Reasoning as AgentReasoning,
     tool::Tool as AgentTool,
 };
 
 pub(super) fn stream_response(
-    dialog: &[DialogMessage],
-    model: &str,
-    reasoning: AgentReasoning,
+    agent: &Agent,
     tools: &[AgentTool],
-    api_base_url: &str,
-    api_key: &str,
-    tx: &EventSender,
-) -> Result<StreamOutcome, AgentMessageError> {
-    let body = build_request(dialog, model, reasoning, tools);
-    let url = format!("{api_base_url}/responses");
-    let mut response = match ureq::post(&url)
-        .config()
-        .http_status_as_error(false)
-        .build()
-        .header("Content-Type", "application/json")
-        .header("Authorization", format!("Bearer {api_key}"))
-        .send_json(body)
-    {
-        Ok(response) => response,
-        Err(error) => return Err(AgentMessageError::Other(error.to_string())),
-    };
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response.body_mut().read_to_string().unwrap_or_default();
-        let message = if body.is_empty() {
-            format!("http status: {status}")
-        } else {
-            body
-        };
-        return Err(AgentMessageError::Other(message));
-    }
-
-    consume_sse_stream(BufReader::new(response.body_mut().as_reader()), tx)
-}
-
-fn build_request(
-    dialog: &[DialogMessage],
-    model: &str,
-    reasoning: AgentReasoning,
-    tools: &[AgentTool],
-) -> Request {
-    let effort = match reasoning {
-        AgentReasoning::Disabled => Some("none"),
-        AgentReasoning::Enabled(effort) => effort.map(|effort| effort.as_str()),
-    };
-
-    Request {
-        model: model.to_owned(),
-        input: dialog_to_input(dialog),
-        reasoning: effort.map(|effort| Reasoning { effort }),
-        text: Text {
-            format: TextFormat { r#type: "text" },
-        },
-        stream: true,
-        tools: tools
-            .iter()
-            .map(|tool| Tool {
-                r#type: "function",
-                description: tool.description.clone(),
-                name: tool.name.clone(),
-                parameters: tool.parameters.clone(),
-            })
-            .collect(),
-    }
-}
-
-fn dialog_to_input(dialog: &[DialogMessage]) -> Vec<InputItem> {
-    let mut input = Vec::new();
-
-    for message in dialog {
-        match message {
-            DialogMessage::System { content } => input.push(InputItem::Message {
-                role: "system",
-                content: content.clone(),
-            }),
-            DialogMessage::User { content } => input.push(InputItem::Message {
-                role: "user",
-                content: content.clone(),
-            }),
-            DialogMessage::Assistant {
-                content,
-                reasoning_content,
-                tool_calls,
-            } => {
-                if !reasoning_content.is_empty() {
-                    input.push(InputItem::Reasoning {
-                        content: vec![ReasoningContent {
-                            r#type: "reasoning_text",
-                            text: reasoning_content.clone(),
-                        }],
-                    });
-                }
-                if !content.is_empty() {
-                    input.push(InputItem::Message {
-                        role: "assistant",
-                        content: content.clone(),
-                    });
-                }
-                input.extend(tool_calls.iter().map(|tool_call| InputItem::FunctionCall {
-                    call_id: tool_call.id.clone(),
-                    name: tool_call.name.clone(),
-                    arguments: tool_call.arguments.clone(),
-                }));
-            }
-            DialogMessage::Tool { id, result } => input.push(InputItem::FunctionCallOutput {
-                call_id: id.clone(),
-                output: result.clone(),
-            }),
-        }
-    }
-
-    input
-}
-
-fn consume_sse_stream(
-    reader: impl BufRead,
     tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
     let mut tool_calls = HashMap::<String, (String, String)>::new();
 
-    for line in reader.lines() {
-        let line = match line {
-            Ok(line) => line,
-            Err(error) => {
-                return Err(AgentMessageError::Other(error.to_string()));
-            }
-        };
-        let Some(data) = line.strip_prefix("data: ") else {
-            continue;
-        };
-        let event: Event = match serde_json::from_str(data) {
-            Ok(event) => event,
-            Err(error) => {
-                return Err(AgentMessageError::Other(error.to_string()));
-            }
-        };
-
+    for data in post_sse(agent, "/responses", &build_request(agent, tools))? {
+        let event: Event = serde_json::from_str(&data?).map_err(other)?;
         match event {
             Event::ReasoningTextDelta { delta } => {
                 emit(tx, AgentMessageDelta::ReasoningContent(delta))?;
@@ -257,42 +124,107 @@ fn consume_sse_stream(
     ))
 }
 
+fn build_request<'a>(agent: &'a Agent, tools: &'a [AgentTool]) -> Request<'a> {
+    let effort = match agent.reasoning {
+        AgentReasoning::Disabled => Some("none"),
+        AgentReasoning::Enabled(effort) => effort.map(|effort| effort.as_str()),
+    };
+
+    Request {
+        model: &agent.model,
+        input: agent.dialog.iter().flat_map(input_items).collect(),
+        reasoning: effort.map(|effort| Reasoning { effort }),
+        text: Text {
+            format: TextFormat { r#type: "text" },
+        },
+        stream: true,
+        tools: tools
+            .iter()
+            .map(|tool| Tool {
+                r#type: "function",
+                description: &tool.description,
+                name: &tool.name,
+                parameters: &tool.parameters,
+            })
+            .collect(),
+    }
+}
+
+fn input_items(message: &DialogMessage) -> Vec<InputItem<'_>> {
+    match message {
+        DialogMessage::System { content } => vec![InputItem::Message {
+            role: "system",
+            content,
+        }],
+        DialogMessage::User { content } => vec![InputItem::Message {
+            role: "user",
+            content,
+        }],
+        DialogMessage::Assistant {
+            content,
+            reasoning_content,
+            tool_calls,
+        } => {
+            let reasoning = (!reasoning_content.is_empty()).then(|| InputItem::Reasoning {
+                content: [ReasoningContent {
+                    r#type: "reasoning_text",
+                    text: reasoning_content,
+                }],
+            });
+            let message = (!content.is_empty()).then_some(InputItem::Message {
+                role: "assistant",
+                content,
+            });
+            let calls = tool_calls.iter().map(|tool_call| InputItem::FunctionCall {
+                call_id: &tool_call.id,
+                name: &tool_call.name,
+                arguments: &tool_call.arguments,
+            });
+            reasoning.into_iter().chain(message).chain(calls).collect()
+        }
+        DialogMessage::Tool { id, result } => vec![InputItem::FunctionCallOutput {
+            call_id: id,
+            output: result,
+        }],
+    }
+}
+
 #[derive(Serialize)]
-struct Request {
-    model: String,
-    input: Vec<InputItem>,
+struct Request<'a> {
+    model: &'a str,
+    input: Vec<InputItem<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning: Option<Reasoning>,
     text: Text,
     stream: bool,
-    tools: Vec<Tool>,
+    tools: Vec<Tool<'a>>,
 }
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-enum InputItem {
+enum InputItem<'a> {
     Message {
         role: &'static str,
-        content: String,
+        content: &'a str,
     },
     Reasoning {
-        content: Vec<ReasoningContent>,
+        content: [ReasoningContent<'a>; 1],
     },
     FunctionCall {
-        call_id: String,
-        name: String,
-        arguments: String,
+        call_id: &'a str,
+        name: &'a str,
+        arguments: &'a str,
     },
     FunctionCallOutput {
-        call_id: String,
-        output: String,
+        call_id: &'a str,
+        output: &'a str,
     },
 }
 
 #[derive(Serialize)]
-struct ReasoningContent {
+struct ReasoningContent<'a> {
     r#type: &'static str,
-    text: String,
+    text: &'a str,
 }
 
 #[derive(Serialize)]
@@ -311,11 +243,11 @@ struct TextFormat {
 }
 
 #[derive(Serialize)]
-struct Tool {
+struct Tool<'a> {
     r#type: &'static str,
-    description: String,
-    name: String,
-    parameters: serde_json::Value,
+    description: &'a str,
+    name: &'a str,
+    parameters: &'a serde_json::Value,
 }
 
 #[derive(Deserialize)]

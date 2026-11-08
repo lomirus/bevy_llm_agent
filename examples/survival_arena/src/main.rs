@@ -7,7 +7,7 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
-use bevy_llm_agent::LlmAgentPlugin;
+use bevy_llm_agent::prelude::*;
 
 use game::{ElapsedTime, GamePhase};
 use ui::{DialogueView, SelectedCharacter};
