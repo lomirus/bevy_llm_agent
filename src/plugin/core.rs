@@ -2,7 +2,7 @@ use crate::{
     messages::{agent_message::AgentMessage, user_message::UserMessage},
     plugin::{
         RawToolCallReceiver, RawToolCallSender,
-        systems::{read_raw_tool_invocation, read_user_message, write_agent_message},
+        systems::{read_user_message, run_tool_calls, write_agent_message},
     },
 };
 use bevy::prelude::*;
@@ -18,11 +18,7 @@ impl Plugin for LlmAgentPlugin {
             .insert_resource(RawToolCallReceiver(rx))
             .add_systems(
                 FixedUpdate,
-                (
-                    read_user_message,
-                    write_agent_message,
-                    read_raw_tool_invocation,
-                ),
+                (read_user_message, write_agent_message, run_tool_calls),
             );
     }
 }

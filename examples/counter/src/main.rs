@@ -7,7 +7,7 @@ use bevy::{
     prelude::*,
 };
 use bevy_llm_agent::{
-    AppExt, LlmAgentPlugin,
+    LlmAgentPlugin,
     agent::Agent,
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
@@ -116,8 +116,6 @@ fn main() {
             }),
             LlmAgentPlugin,
         ))
-        .add_agent_tool::<GetCounter>()
-        .add_agent_tool::<AddToCounter>()
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, print_text)
         .run();

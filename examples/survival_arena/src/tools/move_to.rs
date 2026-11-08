@@ -1,7 +1,7 @@
 use bevy::prelude::*;
-use bevy_llm_agent::{agent_tool, tool::ToolCall};
+use bevy_llm_agent::{agent_tool, tool::ToolInput};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::game::{Character, Coordinate};
 
@@ -9,8 +9,7 @@ use crate::game::{Character, Coordinate};
 ///
 /// - Requirements: you are alive; distance to target >= 1; target coordinates within (-10, 10) on both axes.
 /// - Note: other tools may still be called in the same turn after this succeeds. The "no further turns until arrival" rule applies after the turn finishes.
-#[agent_tool(args = Args, output = Output, system = system)]
-#[derive(SceneComponent, JsonSchema, Clone, Default)]
+#[agent_tool(system = move_to)]
 pub(crate) struct MoveTo;
 
 #[derive(Deserialize, JsonSchema)]
@@ -18,61 +17,29 @@ pub(crate) struct Args {
     coordinate: Coordinate,
 }
 
-#[derive(Serialize, JsonSchema)]
-pub(crate) struct Output {
-    is_success: bool,
-    err_msg: Option<String>,
-}
+fn move_to(
+    In(ToolInput { agent, args }): In<ToolInput<Args>>,
+    mut characters: Query<&mut Character>,
+) -> Result<(), String> {
+    let mut character = characters.get_mut(agent).unwrap();
+    let target = args.coordinate;
 
-fn system(mut calls: MessageMutator<ToolCall<MoveTo>>, mut character_query: Query<&mut Character>) {
-    for call in calls.read() {
-        let mut character = character_query.get_mut(call.entity).unwrap();
-
-        if character.is_dead {
-            call.respond(Output {
-                is_success: false,
-                err_msg: Some("Dead characters cannot move".to_string()),
-            })
-            .unwrap();
-            continue;
-        }
-
-        if call.args.coordinate.x <= -10.0 || call.args.coordinate.x >= 10.0 {
-            call.respond(Output {
-                is_success: false,
-                err_msg: Some(
-                    "The target's horizontal coordinate must be within (-10, 10)".to_string(),
-                ),
-            })
-            .unwrap();
-            continue;
-        }
-
-        if call.args.coordinate.y <= -10.0 || call.args.coordinate.y >= 10.0 {
-            call.respond(Output {
-                is_success: false,
-                err_msg: Some(
-                    "The target's vertical coordinate must be within (-10, 10)".to_string(),
-                ),
-            })
-            .unwrap();
-            continue;
-        }
-
-        let dist = character.coordinate.dist(&call.args.coordinate);
-        if dist < 1.0 {
-            call.respond(Output {
-                is_success: false,
-                err_msg: Some(format!("The distance between the current coordinates and the moving target ({dist}) is less than 1")),
-            }).unwrap();
-            continue;
-        }
-
-        character.moving_target = Some(call.args.coordinate.clone());
-        call.respond(Output {
-            is_success: true,
-            err_msg: None,
-        })
-        .unwrap();
+    if character.is_dead {
+        return Err("Dead characters cannot move".to_owned());
     }
+    if target.x <= -10.0 || target.x >= 10.0 {
+        return Err("The target's horizontal coordinate must be within (-10, 10)".to_owned());
+    }
+    if target.y <= -10.0 || target.y >= 10.0 {
+        return Err("The target's vertical coordinate must be within (-10, 10)".to_owned());
+    }
+    let dist = character.coordinate.dist(&target);
+    if dist < 1.0 {
+        return Err(format!(
+            "The distance between the current coordinates and the moving target ({dist}) is less than 1"
+        ));
+    }
+
+    character.moving_target = Some(target);
+    Ok(())
 }

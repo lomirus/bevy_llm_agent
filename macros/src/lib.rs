@@ -3,68 +3,39 @@ use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
-    Error, Ident, ItemStruct, Path, Result, Token, Type,
+    Error, Expr, ExprLit, Ident, ItemStruct, Lit, Meta, MetaNameValue, Path, Result, Token,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
 
 struct AgentToolArgs {
-    args: Type,
-    output: Type,
     system: Path,
 }
 
 impl Parse for AgentToolArgs {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let mut args = None;
-        let mut output = None;
-        let mut system = None;
-
-        while !input.is_empty() {
-            let key: Ident = input.parse()?;
-            input.parse::<Token![=]>()?;
-
-            match key.to_string().as_str() {
-                "args" => {
-                    if args.is_some() {
-                        return Err(Error::new(key.span(), "duplicate `args`"));
-                    }
-                    args = Some(input.parse()?);
-                }
-                "output" => {
-                    if output.is_some() {
-                        return Err(Error::new(key.span(), "duplicate `output`"));
-                    }
-                    output = Some(input.parse()?);
-                }
-                "system" => {
-                    if system.is_some() {
-                        return Err(Error::new(key.span(), "duplicate `system`"));
-                    }
-                    system = Some(input.parse()?);
-                }
-                _ => {
-                    return Err(Error::new(
-                        key.span(),
-                        "expected `args`, `output`, or `system`",
-                    ));
-                }
-            }
-
-            if !input.is_empty() {
-                input.parse::<Token![,]>()?;
-            }
+        let key: Ident = input.parse()?;
+        if key != "system" {
+            return Err(Error::new(key.span(), "expected `system`"));
         }
-
-        Ok(Self {
-            args: args.ok_or_else(|| input.error("missing `args`"))?,
-            output: output.ok_or_else(|| input.error("missing `output`"))?,
-            system: system.ok_or_else(|| input.error("missing `system`"))?,
-        })
+        input.parse::<Token![=]>()?;
+        let system = input.parse()?;
+        if !input.is_empty() {
+            input.parse::<Token![,]>()?;
+        }
+        Ok(Self { system })
     }
 }
 
-/// Declares an LLM agent tool and binds its argument, output, and Bevy system types.
+/// Declares an LLM agent tool backed by a Bevy system.
+///
+/// The system takes `In<ToolInput<Args>>` and returns the result sent back to the model.
+/// The tool is named after the struct in snake case, and its doc comment is sent to the
+/// model as the tool description.
+///
+/// This also derives `SceneComponent`, `Clone`, and `Default`, so the tool can be
+/// attached in `bsn!` with `AgentTools [ @MyTool ]`.
 #[proc_macro_attribute]
 pub fn agent_tool(attr: TokenStream, item: TokenStream) -> TokenStream {
     let args = parse_macro_input!(attr as AgentToolArgs);
@@ -78,38 +49,81 @@ pub fn agent_tool(attr: TokenStream, item: TokenStream) -> TokenStream {
 fn expand_agent_tool(args: AgentToolArgs, item: ItemStruct) -> Result<TokenStream2> {
     let runtime = dependency_crate("bevy-llm-agent", &item)?;
     let bevy = dependency_crate("bevy", &item)?;
-    let AgentToolArgs {
-        args,
-        output,
-        system,
-    } = args;
+    let AgentToolArgs { system } = args;
 
     let name = &item.ident;
+    let tool_name = snake_case(&name.unraw().to_string());
+    let description = doc_comment(&item)?;
     let (impl_generics, type_generics, where_clause) = item.generics.split_for_impl();
 
     Ok(quote! {
+        #[derive(
+            #bevy::prelude::SceneComponent,
+            ::core::clone::Clone,
+            ::core::default::Default,
+        )]
         #item
 
         impl #impl_generics #name #type_generics #where_clause {
             fn scene() -> impl #bevy::prelude::Scene {
                 #bevy::scene::InsertTemplate {
-                    type_id: ::std::any::TypeId::of::<#runtime::tool::Tool>(),
-                    template: ::std::boxed::Box::new(#runtime::tool::Tool::of::<Self>()),
+                    type_id: ::core::any::TypeId::of::<#runtime::tool::Tool>(),
+                    template: ::std::boxed::Box::new(
+                        #runtime::tool::Tool::new(#tool_name, #description, #system)
+                    ),
                 }
             }
         }
-
-        impl #impl_generics #runtime::tool::ToolTrait for #name #type_generics #where_clause {
-            type Args = #args;
-            type Output = #output;
-
-            fn boxed_system() -> #bevy::ecs::system::BoxedSystem {
-                ::std::boxed::Box::new(
-                    #bevy::ecs::system::IntoSystem::into_system(#system)
-                )
-            }
-        }
     })
+}
+
+fn doc_comment(item: &ItemStruct) -> Result<String> {
+    let lines: Vec<String> = item
+        .attrs
+        .iter()
+        .filter_map(|attr| match &attr.meta {
+            Meta::NameValue(MetaNameValue {
+                path,
+                value:
+                    Expr::Lit(ExprLit {
+                        lit: Lit::Str(line),
+                        ..
+                    }),
+                ..
+            }) if path.is_ident("doc") => Some(line.value()),
+            _ => None,
+        })
+        .map(|line| line.strip_prefix(' ').map(str::to_owned).unwrap_or(line))
+        .collect();
+    let description = lines.join("\n").trim().to_owned();
+    if description.is_empty() {
+        return Err(Error::new(
+            item.ident.span(),
+            "agent tools need a doc comment, which is sent to the model as the tool description",
+        ));
+    }
+    Ok(description)
+}
+
+/// `GetHTTPStatus` -> `get_http_status`.
+fn snake_case(ident: &str) -> String {
+    let chars: Vec<char> = ident.chars().collect();
+    let mut name = String::new();
+    for (i, &c) in chars.iter().enumerate() {
+        if c.is_uppercase() {
+            let prev = i.checked_sub(1).map(|i| chars[i]);
+            let next = chars.get(i + 1);
+            let word_start = prev.is_some_and(|p| p.is_lowercase() || p.is_ascii_digit())
+                || (prev.is_some_and(char::is_uppercase) && next.is_some_and(|n| n.is_lowercase()));
+            if word_start {
+                name.push('_');
+            }
+            name.extend(c.to_lowercase());
+        } else {
+            name.push(c);
+        }
+    }
+    name
 }
 
 fn dependency_crate(package: &str, item: &ItemStruct) -> Result<TokenStream2> {

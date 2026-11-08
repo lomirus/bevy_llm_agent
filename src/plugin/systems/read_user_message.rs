@@ -45,11 +45,12 @@ fn run_agent_loop(
                             entity,
                             raw_args: tool_call.arguments,
                             raw_responder: tx,
-                            dispatch: tools
+                            call: tools
                                 .iter()
                                 .find(|tool| tool.name == tool_call.name)
                                 .unwrap()
-                                .dispatch,
+                                .call
+                                .clone(),
                         })
                         .unwrap();
                 }

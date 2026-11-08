@@ -7,10 +7,9 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
-use bevy_llm_agent::{AppExt, LlmAgentPlugin};
+use bevy_llm_agent::LlmAgentPlugin;
 
 use game::{AwaitingAgentOutputs, ElapsedTime, GamePhase};
-use tools::{DevourCharacter, GetCurrentInfo, MoveTo};
 use ui::{DialogueView, SelectedCharacter};
 
 fn main() {
@@ -34,9 +33,6 @@ fn main() {
             LlmAgentPlugin,
             ui::AutoScrollToBottomPlugin,
         ))
-        .add_agent_tool::<GetCurrentInfo>()
-        .add_agent_tool::<MoveTo>()
-        .add_agent_tool::<DevourCharacter>()
         .add_systems(Startup, (ui::setup, ui::select_strongest_character).chain())
         .add_systems(
             Update,
