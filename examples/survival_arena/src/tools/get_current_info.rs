@@ -6,7 +6,7 @@ use serde::Serialize;
 use crate::game::{Character, ElapsedTime};
 
 /// Get current information: yourself, all other living characters, and elapsed time (seconds).
-#[agent_tool(system = get_current_info)]
+#[agent_tool]
 pub(crate) struct GetCurrentInfo;
 
 #[derive(JsonSchema, Serialize)]

@@ -3,27 +3,24 @@ use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{format_ident, quote};
 use syn::{
-    Error, Expr, ExprLit, Ident, ItemStruct, Lit, Meta, MetaNameValue, Path, Result, Token,
+    Error, Expr, ExprLit, Ident, ItemStruct, Lit, Meta, MetaNameValue, Path, Result,
     ext::IdentExt,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
 
+/// `#[agent_tool]` or `#[agent_tool(path::to::system)]`.
 struct AgentToolArgs {
-    system: Path,
+    system: Option<Path>,
 }
 
 impl Parse for AgentToolArgs {
     fn parse(input: ParseStream<'_>) -> Result<Self> {
-        let key: Ident = input.parse()?;
-        if key != "system" {
-            return Err(Error::new(key.span(), "expected `system`"));
-        }
-        input.parse::<Token![=]>()?;
-        let system = input.parse()?;
-        if !input.is_empty() {
-            input.parse::<Token![,]>()?;
-        }
+        let system = if input.is_empty() {
+            None
+        } else {
+            Some(input.parse()?)
+        };
         Ok(Self { system })
     }
 }
@@ -33,6 +30,9 @@ impl Parse for AgentToolArgs {
 /// The system takes `In<ToolInput<Args>>` and returns the result sent back to the model.
 /// The tool is named after the struct in snake case, and its doc comment is sent to the
 /// model as the tool description.
+///
+/// By default the system is the function with the tool's name, e.g. `get_weather` for
+/// `GetWeather`; pass a path to use another one: `#[agent_tool(path::to::system)]`.
 ///
 /// This also derives `SceneComponent`, `Clone`, and `Default`, so the tool can be
 /// attached in `bsn!` with `AgentTools [ @MyTool ]`.
@@ -53,6 +53,8 @@ fn expand_agent_tool(args: AgentToolArgs, item: ItemStruct) -> Result<TokenStrea
 
     let name = &item.ident;
     let tool_name = snake_case(&name.unraw().to_string());
+    // Raw, so that tools like `Move` can use a function named `r#move`.
+    let system = system.unwrap_or_else(|| Ident::new_raw(&tool_name, name.span()).into());
     let description = doc_comment(&item)?;
     let (impl_generics, type_generics, where_clause) = item.generics.split_for_impl();
 

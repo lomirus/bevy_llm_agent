@@ -9,7 +9,7 @@ use crate::game::Character;
 ///
 /// - Requirements: you are alive; target exists, is alive, and is not yourself; your combat power >= target's; distance < 1.
 /// - Success: target is eliminated; your combat power becomes the sum of both.
-#[agent_tool(system = devour_character)]
+#[agent_tool]
 pub(crate) struct DevourCharacter;
 
 #[derive(Deserialize, JsonSchema)]

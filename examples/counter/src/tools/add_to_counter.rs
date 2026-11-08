@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::Counter;
 
 /// Add an unsigned integer value to counter.
-#[agent_tool(system = add_to_counter)]
+#[agent_tool]
 pub(crate) struct AddToCounter;
 
 #[derive(Deserialize, JsonSchema)]

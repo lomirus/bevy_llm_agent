@@ -17,7 +17,7 @@ A Bevy plugin for integrating LLM agents into Bevy applications.
 
 ```rust
 /// Get the weather for a city.
-#[agent_tool(system = get_weather)]
+#[agent_tool]
 struct GetWeather;
 
 #[derive(Deserialize, JsonSchema)]
@@ -31,7 +31,7 @@ fn get_weather(In(input): In<ToolInput<WeatherArgs>>) -> String {
 }
 ```
 
-The tool is named after the struct in snake case (`get_weather`), and its doc comment is sent to the model as the tool description. The system's return value is serialized to JSON and sent back to the model.
+The tool is named after the struct in snake case (`get_weather`) and runs the system of the same name; use `#[agent_tool(other_system)]` to pick another one. Its doc comment is sent to the model as the tool description, and the system's return value is serialized to JSON and sent back to the model.
 
 ### Set Up the App
 

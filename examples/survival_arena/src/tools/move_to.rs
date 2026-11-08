@@ -9,7 +9,7 @@ use crate::game::{Character, Coordinate};
 ///
 /// - Requirements: you are alive; distance to target >= 1; target coordinates within (-10, 10) on both axes.
 /// - Note: other tools may still be called in the same turn after this succeeds. The "no further turns until arrival" rule applies after the turn finishes.
-#[agent_tool(system = move_to)]
+#[agent_tool]
 pub(crate) struct MoveTo;
 
 #[derive(Deserialize, JsonSchema)]
