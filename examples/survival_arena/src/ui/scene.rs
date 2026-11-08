@@ -12,7 +12,7 @@ use bevy::{
     ui::widget::ViewportNode,
 };
 use bevy_llm_agent::{
-    agent::{Agent, DialogMessage, Thinking},
+    agent::{Agent, DialogMessage},
     provider::deepseek,
     tool::AgentTools,
 };
@@ -45,7 +45,7 @@ pub(crate) struct MapCamera;
 
 fn character_agent(id: u8) -> Agent {
     let mut agent = Agent::builder(deepseek::V4_FLASH)
-        .thinking(Thinking::Off)
+        .thinking(deepseek::FlashThinking::Off)
         .build()
         .unwrap();
     agent

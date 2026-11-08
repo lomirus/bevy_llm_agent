@@ -25,7 +25,7 @@ pub(crate) fn stream_response(
         api_dialect,
         dialog,
         model,
-        thinking,
+        reasoning,
         api_base_url,
         api_key,
     } = agent;
@@ -34,7 +34,7 @@ pub(crate) fn stream_response(
             chat_completion::stream_response(
                 dialog,
                 model,
-                thinking,
+                *reasoning,
                 tools,
                 api_base_url,
                 api_key,
@@ -42,7 +42,7 @@ pub(crate) fn stream_response(
             )
         }
         ApiDialect::DeepSeekResponses => {
-            responses::stream_response(dialog, model, thinking, tools, api_base_url, api_key, tx)
+            responses::stream_response(dialog, model, *reasoning, tools, api_base_url, api_key, tx)
         }
     }
 }

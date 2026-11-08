@@ -1,15 +1,15 @@
 use crate::{
-    agent::{Agent, Thinking},
-    provider::ModelPreset,
+    agent::Agent,
+    provider::{ModelPreset, Thinking},
 };
 use std::{env, error::Error, fmt};
 
 /// An agent configuration builder. See [`Agent::builder`].
 #[derive(Clone)]
-pub struct AgentBuilder<'a> {
-    preset: ModelPreset<'a>,
+pub struct AgentBuilder<'a, T> {
+    preset: ModelPreset<'a, T>,
     base_url: String,
-    thinking: Thinking,
+    thinking: T,
     api_key_source: ApiKeySource,
 }
 
@@ -19,18 +19,27 @@ enum ApiKeySource {
     Explicit(String),
 }
 
-impl<'a> AgentBuilder<'a> {
-    pub(crate) fn new(preset: ModelPreset<'a>) -> Self {
+impl<'a, T: Thinking> AgentBuilder<'a, T> {
+    pub(crate) fn new(preset: ModelPreset<'a, T>) -> Self {
         Self {
             preset,
             base_url: preset.base_url.to_owned(),
-            thinking: preset.default_thinking,
+            thinking: T::default(),
             api_key_source: ApiKeySource::Environment(preset.api_key_env.to_owned()),
         }
     }
 
     /// Override the model's default thinking level.
-    pub fn thinking(mut self, thinking: Thinking) -> Self {
+    ///
+    /// Only the options of the preset's own thinking type are accepted:
+    ///
+    /// ```compile_fail
+    /// use bevy_llm_agent::{agent::Agent, provider::{deepseek, moonshot}};
+    ///
+    /// // `kimi-k3` takes `moonshot::K3Thinking`, which has no `Off`.
+    /// Agent::builder(moonshot::K3).thinking(deepseek::FlashThinking::Off);
+    /// ```
+    pub fn thinking(mut self, thinking: T) -> Self {
         self.thinking = thinking;
         self
     }
@@ -56,13 +65,6 @@ impl<'a> AgentBuilder<'a> {
 
     /// Validate the configuration, resolve the API key, and create the agent.
     pub fn build(self) -> Result<Agent, AgentBuildError> {
-        if !self.preset.supported_thinking.contains(&self.thinking) {
-            return Err(AgentBuildError::UnsupportedThinking {
-                model: self.preset.model.to_owned(),
-                thinking: self.thinking,
-            });
-        }
-
         let api_key = match self.api_key_source {
             ApiKeySource::Explicit(key) => key,
             ApiKeySource::Environment(variable) => {
@@ -78,7 +80,7 @@ impl<'a> AgentBuilder<'a> {
         Ok(Agent {
             api_dialect: self.preset.api_dialect,
             model: self.preset.model.to_owned(),
-            thinking: self.thinking,
+            reasoning: self.thinking.reasoning(),
             dialog: Vec::new(),
             api_base_url: self.base_url.trim_end_matches('/').to_owned(),
             api_key,
@@ -90,7 +92,6 @@ impl<'a> AgentBuilder<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[non_exhaustive]
 pub enum AgentBuildError {
-    UnsupportedThinking { model: String, thinking: Thinking },
     MissingApiKeyEnv { variable: String },
     NonUnicodeApiKeyEnv { variable: String },
 }
@@ -98,9 +99,6 @@ pub enum AgentBuildError {
 impl fmt::Display for AgentBuildError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnsupportedThinking { model, thinking } => {
-                write!(f, "{thinking:?} thinking is not supported by model {model}")
-            }
             Self::MissingApiKeyEnv { variable } => {
                 write!(f, "API key environment variable {variable} is not set")
             }

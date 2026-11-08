@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_llm_agent::{
     LlmAgentPlugin,
-    agent::{Agent, Thinking},
+    agent::Agent,
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta},
         user_message::UserMessage,
@@ -14,7 +14,7 @@ use bevy_llm_agent::{
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let agent = Agent::builder(deepseek::V4_FLASH)
-        .thinking(Thinking::Off)
+        .thinking(deepseek::FlashThinking::Off)
         .build()
         .unwrap();
     commands.spawn(Camera2d);

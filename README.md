@@ -55,7 +55,7 @@ export DEEPSEEK_API_KEY="sk-xxx"
 ```rust
 bsn! {
     Agent::builder(deepseek::V4_FLASH)
-        .thinking(Thinking::Off)
+        .thinking(deepseek::FlashThinking::Off)
         .build()
         .unwrap()
     AgentTools [

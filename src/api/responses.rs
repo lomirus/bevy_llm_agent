@@ -7,22 +7,23 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    agent::{DialogMessage, Thinking as AgentThinking},
+    agent::DialogMessage,
     api::{DeltaResult, StreamOutcome, emit_delta},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
+    provider::Reasoning as AgentReasoning,
     tool::Tool as AgentTool,
 };
 
 pub(super) fn stream_response(
     dialog: &mut Vec<DialogMessage>,
     model: &str,
-    thinking: &AgentThinking,
+    reasoning: AgentReasoning,
     tools: &[AgentTool],
     api_base_url: &str,
     api_key: &str,
     tx: &mpsc::Sender<DeltaResult>,
 ) -> Result<StreamOutcome, AgentMessageError> {
-    let body = build_request(dialog, model, thinking, tools);
+    let body = build_request(dialog, model, reasoning, tools);
     let url = format!("{api_base_url}/responses");
     let mut response = match ureq::post(&url)
         .config()
@@ -53,22 +54,18 @@ pub(super) fn stream_response(
 fn build_request(
     dialog: &[DialogMessage],
     model: &str,
-    thinking: &AgentThinking,
+    reasoning: AgentReasoning,
     tools: &[AgentTool],
 ) -> Request {
-    use AgentThinking::*;
+    let effort = match reasoning {
+        AgentReasoning::Disabled => Some("none"),
+        AgentReasoning::Enabled(effort) => effort.map(|effort| effort.as_str()),
+    };
 
     Request {
         model: model.to_owned(),
         input: dialog_to_input(dialog),
-        reasoning: Reasoning {
-            effort: match thinking {
-                Off => "none",
-                Low => "low",
-                High => "high",
-                Max => "max",
-            },
-        },
+        reasoning: effort.map(|effort| Reasoning { effort }),
         text: Text {
             format: TextFormat { r#type: "text" },
         },
@@ -269,7 +266,8 @@ fn consume_sse_stream(
 struct Request {
     model: String,
     input: Vec<InputItem>,
-    reasoning: Reasoning,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    reasoning: Option<Reasoning>,
     text: Text,
     stream: bool,
     tools: Vec<Tool>,

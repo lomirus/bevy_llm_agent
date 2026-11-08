@@ -6,11 +6,7 @@ use bevy::{
     log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
-use bevy_llm_agent::{
-    LlmAgentPlugin,
-    agent::{Agent, Thinking},
-    provider::deepseek,
-};
+use bevy_llm_agent::{LlmAgentPlugin, agent::Agent, provider::deepseek};
 
 use auto_scroll::AutoScrollToBottomPlugin;
 use ui::{chat_ui, enable_send_button, update_chat_messages};
@@ -19,7 +15,7 @@ fn setup(mut commands: Commands) {
     commands.spawn((Camera2d, IsDefaultUiCamera));
     commands.spawn(
         Agent::builder(deepseek::V4_FLASH)
-            .thinking(Thinking::Off)
+            .thinking(deepseek::FlashThinking::Off)
             .build()
             .unwrap(),
     );

@@ -1,32 +1,65 @@
-use super::ModelPreset;
-use crate::agent::{ApiDialect, Thinking};
+use super::{ModelPreset, Reasoning, ReasoningEffort, Sealed, Thinking};
+use crate::agent::ApiDialect;
 
 const BASE_URL: &str = "https://api.deepseek.com";
 const API_KEY_ENV: &str = "DEEPSEEK_API_KEY";
-const FLASH_SUPPORTED_THINKING: &[Thinking] =
-    &[Thinking::Off, Thinking::Low, Thinking::High, Thinking::Max];
-const PRO_SUPPORTED_THINKING: &[Thinking] = &[Thinking::Off, Thinking::High, Thinking::Max];
+
+/// Thinking options for [`V4_FLASH`].
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum FlashThinking {
+    Off,
+    Low,
+    #[default]
+    High,
+    Max,
+}
+
+impl Thinking for FlashThinking {}
+
+impl Sealed for FlashThinking {
+    fn reasoning(self) -> Reasoning {
+        match self {
+            Self::Off => Reasoning::Disabled,
+            Self::Low => Reasoning::Enabled(Some(ReasoningEffort::Low)),
+            Self::High => Reasoning::Enabled(Some(ReasoningEffort::High)),
+            Self::Max => Reasoning::Enabled(Some(ReasoningEffort::Max)),
+        }
+    }
+}
+
+/// Thinking options for [`V4_PRO`].
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum ProThinking {
+    Off,
+    #[default]
+    High,
+    Max,
+}
+
+impl Thinking for ProThinking {}
+
+impl Sealed for ProThinking {
+    fn reasoning(self) -> Reasoning {
+        match self {
+            Self::Off => Reasoning::Disabled,
+            Self::High => Reasoning::Enabled(Some(ReasoningEffort::High)),
+            Self::Max => Reasoning::Enabled(Some(ReasoningEffort::Max)),
+        }
+    }
+}
 
 /// `deepseek-v4-flash`.
-///
-/// Allowed [`Thinking`] options: [`Off`](Thinking::Off), [`Low`](Thinking::Low), [`High`](Thinking::High), [`Max`](Thinking::Max).
-pub const V4_FLASH: ModelPreset<'static> = ModelPreset {
-    api_dialect: ApiDialect::DeepSeekResponses,
-    base_url: BASE_URL,
-    model: "deepseek-v4-flash",
-    api_key_env: API_KEY_ENV,
-    supported_thinking: FLASH_SUPPORTED_THINKING,
-    default_thinking: Thinking::High,
-};
+pub const V4_FLASH: ModelPreset<'static, FlashThinking> = ModelPreset::new(
+    ApiDialect::DeepSeekResponses,
+    BASE_URL,
+    "deepseek-v4-flash",
+    API_KEY_ENV,
+);
 
 /// `deepseek-v4-pro`.
-///
-/// Allowed [`Thinking`] options: [`Off`](Thinking::Off), [`High`](Thinking::High), [`Max`](Thinking::Max).
-pub const V4_PRO: ModelPreset<'static> = ModelPreset {
-    api_dialect: ApiDialect::DeepSeekChatCompletions,
-    base_url: BASE_URL,
-    model: "deepseek-v4-pro",
-    api_key_env: API_KEY_ENV,
-    supported_thinking: PRO_SUPPORTED_THINKING,
-    default_thinking: Thinking::High,
-};
+pub const V4_PRO: ModelPreset<'static, ProThinking> = ModelPreset::new(
+    ApiDialect::DeepSeekChatCompletions,
+    BASE_URL,
+    "deepseek-v4-pro",
+    API_KEY_ENV,
+);

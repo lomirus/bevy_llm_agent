@@ -6,22 +6,23 @@ use std::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    agent::{DialogMessage, Thinking as AgentThinking},
+    agent::DialogMessage,
     api::{DeltaResult, StreamOutcome, emit_delta},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
+    provider::Reasoning,
     tool::Tool as AgentTool,
 };
 
 pub(super) fn stream_response(
     dialog: &mut Vec<DialogMessage>,
     model: &str,
-    thinking: &AgentThinking,
+    reasoning: Reasoning,
     tools: &[AgentTool],
     api_base_url: &str,
     api_key: &str,
     tx: &mpsc::Sender<DeltaResult>,
 ) -> Result<StreamOutcome, AgentMessageError> {
-    let body = build_request(dialog, model, *thinking, tools);
+    let body = build_request(dialog, model, reasoning, tools);
 
     let url = format!("{api_base_url}/chat/completions");
     let mut response = match ureq::post(&url)
@@ -53,31 +54,20 @@ pub(super) fn stream_response(
 fn build_request(
     dialog: &[DialogMessage],
     model: &str,
-    thinking: AgentThinking,
+    reasoning: Reasoning,
     tools: &[AgentTool],
 ) -> Request {
-    use AgentThinking::*;
-
-    let reasoning_effort = match model {
-        "kimi-k2.5" | "kimi-k2.6" | "kimi-k2.7-code" | "kimi-k2.7-code-highspeed" => None,
-        _ => match thinking {
-            Off => None,
-            Low => Some("low".to_owned()),
-            High => Some("high".to_owned()),
-            Max => Some("max".to_owned()),
-        },
-    };
-    let thinking = Thinking {
-        r#type: match thinking {
-            Off => "disabled".to_owned(),
-            Low | High | Max => "enabled".to_owned(),
-        },
+    let (thinking_type, reasoning_effort) = match reasoning {
+        Reasoning::Disabled => ("disabled", None),
+        Reasoning::Enabled(effort) => ("enabled", effort.map(|effort| effort.as_str())),
     };
 
     Request {
         messages: dialog.iter().map(|msg| msg.clone().into()).collect(),
         model: model.to_owned(),
-        thinking,
+        thinking: Thinking {
+            r#type: thinking_type,
+        },
         reasoning_effort,
         response_format: ResponseFormat {
             r#type: "text".to_owned(),
@@ -184,7 +174,7 @@ struct Request {
     model: String,
     thinking: Thinking,
     #[serde(skip_serializing_if = "Option::is_none")]
-    reasoning_effort: Option<String>,
+    reasoning_effort: Option<&'static str>,
     response_format: ResponseFormat,
     stream: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -266,7 +256,7 @@ impl From<DialogMessage> for Message {
 
 #[derive(Serialize)]
 struct Thinking {
-    r#type: String,
+    r#type: &'static str,
 }
 
 #[derive(Serialize)]

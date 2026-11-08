@@ -8,7 +8,7 @@ use bevy::{
 };
 use bevy_llm_agent::{
     AppExt, LlmAgentPlugin,
-    agent::{Agent, Thinking},
+    agent::Agent,
     messages::{
         agent_message::{AgentMessage, AgentMessageDelta, AgentMessageError},
         user_message::UserMessage,
@@ -25,7 +25,7 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
     let entity = commands
         .spawn_scene(bsn! {
                 Agent::builder(deepseek::V4_FLASH)
-                    .thinking(Thinking::Off)
+                    .thinking(deepseek::FlashThinking::Off)
                     .build()
                     .unwrap()
                 AgentTools [

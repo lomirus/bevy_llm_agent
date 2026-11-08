@@ -2,16 +2,53 @@
 
 pub mod deepseek;
 pub mod moonshot;
+mod thinking;
 
-use crate::agent::{ApiDialect, Thinking};
+use std::marker::PhantomData;
 
-/// Endpoint, credential source, and thinking defaults for a particular model.
+use crate::agent::ApiDialect;
+
+pub use thinking::Thinking;
+pub(crate) use thinking::sealed::{Reasoning, ReasoningEffort, Sealed};
+
+/// Endpoint and credential source for a particular model.
+///
+/// `T` is the set of thinking options the model accepts; its
+/// [`Default`] value is the model's default thinking level.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ModelPreset<'a> {
+pub struct ModelPreset<'a, T> {
     pub api_dialect: ApiDialect,
     pub base_url: &'a str,
     pub model: &'a str,
     pub api_key_env: &'a str,
-    pub supported_thinking: &'a [Thinking],
-    pub default_thinking: Thinking,
+    thinking: PhantomData<T>,
+}
+
+impl<'a, T: Thinking> ModelPreset<'a, T> {
+    /// Describe a model that accepts the thinking options `T`.
+    ///
+    /// ```
+    /// use bevy_llm_agent::{agent::ApiDialect, provider::{ModelPreset, deepseek}};
+    ///
+    /// let preset = ModelPreset::<deepseek::ProThinking>::new(
+    ///     ApiDialect::DeepSeekChatCompletions,
+    ///     "https://api.deepseek.com",
+    ///     "deepseek-v4-pro",
+    ///     "DEEPSEEK_API_KEY",
+    /// );
+    /// ```
+    pub const fn new(
+        api_dialect: ApiDialect,
+        base_url: &'a str,
+        model: &'a str,
+        api_key_env: &'a str,
+    ) -> Self {
+        Self {
+            api_dialect,
+            base_url,
+            model,
+            api_key_env,
+            thinking: PhantomData,
+        }
+    }
 }
