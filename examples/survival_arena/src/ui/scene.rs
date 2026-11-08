@@ -44,7 +44,10 @@ pub(crate) struct MapViewport;
 pub(crate) struct MapCamera;
 
 fn character_agent(id: u8) -> Agent {
-    let mut agent = Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap();
+    let mut agent = Agent::builder(deepseek::V4_FLASH)
+        .thinking(Thinking::Off)
+        .build()
+        .unwrap();
     agent
         .dialog
         .push(DialogMessage::system(&character_system_prompt(id)));

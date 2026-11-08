@@ -54,7 +54,10 @@ export DEEPSEEK_API_KEY="sk-xxx"
 
 ```rust
 bsn! {
-    Agent::new(deepseek::V4_FLASH, Thinking::Off).unwrap()
+    Agent::builder(deepseek::V4_FLASH)
+        .thinking(Thinking::Off)
+        .build()
+        .unwrap()
     AgentTools [
         @GetWeather
     ]
