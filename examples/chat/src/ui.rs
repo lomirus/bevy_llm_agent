@@ -63,18 +63,25 @@ fn dialog_entries(dialog: &[DialogMessage]) -> Vec<(&str, AlignSelf)> {
     entries
 }
 
-fn message_bubble(body: &str, align: AlignSelf) -> impl Scene {
+fn message_text(body: &str, align: AlignSelf) -> impl Scene {
     let body = body.to_string();
+    let is_user = align == AlignSelf::FlexEnd;
+    let bubble_style = is_user.then(|| {
+        bsn! {
+            ThemeBackgroundColor(tokens::SUBPANE_BODY_BG)
+            ThemeBorderColor(tokens::SUBPANE_BODY_BORDER)
+        }
+    });
     bsn! {
         Node {
-            width: percent(80),
+            max_width: {percent(if is_user { 80.0 } else { 100.0 })},
             align_self: {align},
-            padding: px(8),
-            border: UiRect::all(px(1)),
-            border_radius: {RoundedCorners::All.to_border_radius(8.0)},
+            flex_shrink: 0.0,
+            padding: {UiRect::all(px(if is_user { 8.0 } else { 0.0 }))},
+            border: {UiRect::all(px(if is_user { 1.0 } else { 0.0 }))},
+            border_radius: {RoundedCorners::All.to_border_radius(if is_user { 8.0 } else { 0.0 })},
         }
-        ThemeBackgroundColor(tokens::SUBPANE_BODY_BG)
-        ThemeBorderColor(tokens::SUBPANE_BODY_BORDER)
+        @{bubble_style}
         Text({body})
         ThemedText
         TextLayout::new(Justify::Left, LineBreak::WordOrCharacter)
@@ -89,6 +96,8 @@ fn chat_messages_panel() -> impl Scene {
     bsn! {
         Node {
             flex_grow: 1.0,
+            flex_basis: px(0),
+            min_width: px(0),
             min_height: px(0),
             display: Display::Flex,
             flex_direction: FlexDirection::Column,
@@ -100,7 +109,10 @@ fn chat_messages_panel() -> impl Scene {
             #chat_scroll
             Node {
                 flex_grow: 1.0,
+                flex_basis: px(0),
+                min_width: px(0),
                 min_height: px(0),
+                flex_direction: FlexDirection::Column,
                 overflow: Overflow::scroll_y(),
                 padding: px(8),
             }
@@ -109,6 +121,7 @@ fn chat_messages_panel() -> impl Scene {
             Children [
                 Node {
                     width: percent(100),
+                    flex_shrink: 0.0,
                     display: Display::Flex,
                     flex_direction: FlexDirection::Column,
                     row_gap: px(8),
@@ -170,6 +183,7 @@ pub(crate) fn chat_ui() -> impl Scene {
         Node {
             width: percent(100),
             height: percent(100),
+            min_width: px(0),
             display: Display::Flex,
             flex_direction: FlexDirection::Column,
             padding: px(16),
@@ -236,7 +250,7 @@ pub(crate) fn update_chat_messages(
     if rendered < entries.len() {
         for &(body, align) in &entries[rendered..] {
             commands
-                .spawn_scene(message_bubble(body, align))
+                .spawn_scene(message_text(body, align))
                 .insert(ChildOf(list_entity));
         }
     } else if let Some(&bubble) = children.and_then(|children| children.last())
