@@ -3,7 +3,6 @@
 mod tool;
 
 pub use tool::Tool;
-pub(crate) use tool::ToolFn;
 
 use bevy::prelude::*;
 use schemars::JsonSchema;
@@ -28,10 +27,3 @@ pub struct ToolInput<A = NoArgs> {
 /// Arguments of a tool that takes none.
 #[derive(Deserialize, JsonSchema)]
 pub struct NoArgs {}
-
-pub(crate) struct RawToolCall {
-    pub(crate) entity: Entity,
-    pub(crate) raw_args: String,
-    pub(crate) raw_responder: oneshot::Sender<String>,
-    pub(crate) call: ToolFn,
-}

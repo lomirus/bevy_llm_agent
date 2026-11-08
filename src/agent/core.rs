@@ -1,12 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    agent::{AgentBuilder, AgentStatus, ApiDialect, DialogMessage},
+    agent::{AgentBuilder, ApiDialect, DialogMessage},
     provider::{ModelPreset, Reasoning, Thinking},
 };
 
 #[derive(Component, Default, Clone)]
-#[require(AgentStatus)]
 pub struct Agent {
     pub api_dialect: ApiDialect,
     pub model: String,

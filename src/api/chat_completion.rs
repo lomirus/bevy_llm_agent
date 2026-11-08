@@ -1,26 +1,23 @@
-use std::{
-    io::{BufRead, BufReader},
-    sync::mpsc,
-};
+use std::io::{BufRead, BufReader};
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
     agent::DialogMessage,
-    api::{DeltaResult, StreamOutcome, emit_delta},
+    api::{EventSender, StreamOutcome, emit},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
     provider::Reasoning,
     tool::Tool as AgentTool,
 };
 
 pub(super) fn stream_response(
-    dialog: &mut Vec<DialogMessage>,
+    dialog: &[DialogMessage],
     model: &str,
     reasoning: Reasoning,
     tools: &[AgentTool],
     api_base_url: &str,
     api_key: &str,
-    tx: &mpsc::Sender<DeltaResult>,
+    tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
     let body = build_request(dialog, model, reasoning, tools);
 
@@ -48,7 +45,7 @@ pub(super) fn stream_response(
         return Err(AgentMessageError::Other(message));
     }
 
-    consume_sse_stream(BufReader::new(response.body_mut().as_reader()), dialog, tx)
+    consume_sse_stream(BufReader::new(response.body_mut().as_reader()), tx)
 }
 
 fn build_request(
@@ -89,8 +86,7 @@ fn build_request(
 
 fn consume_sse_stream(
     reader: impl BufRead,
-    dialog: &mut Vec<DialogMessage>,
-    tx: &mpsc::Sender<DeltaResult>,
+    tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
     let mut finish_reason = None;
     let mut tool_call_ids = Vec::<Option<String>>::new();
@@ -125,14 +121,13 @@ fn consume_sse_stream(
         }
         let choice = &data.choices[0];
         if let Some(reasoning_content) = &choice.delta.reasoning_content {
-            emit_delta(
-                dialog,
+            emit(
                 tx,
                 AgentMessageDelta::ReasoningContent(reasoning_content.to_owned()),
-            );
+            )?;
         }
         if let Some(content) = &choice.delta.content {
-            emit_delta(dialog, tx, AgentMessageDelta::Content(content.to_owned()));
+            emit(tx, AgentMessageDelta::Content(content.to_owned()))?;
         }
         if let Some(tool_calls) = &choice.delta.tool_calls {
             for tool_call in tool_calls {
@@ -143,8 +138,7 @@ fn consume_sse_stream(
                 if let Some(id) = &tool_call.id {
                     tool_call_ids[index] = Some(id.clone());
                 }
-                emit_delta(
-                    dialog,
+                emit(
                     tx,
                     AgentMessageDelta::ToolCall {
                         name: tool_call.function.name.clone().unwrap_or_default(),
@@ -155,7 +149,7 @@ fn consume_sse_stream(
                             .or_else(|| tool_call_ids[index].clone())
                             .unwrap_or_default(),
                     },
-                );
+                )?;
             }
         }
         if let Some(reason) = choice.finish_reason {

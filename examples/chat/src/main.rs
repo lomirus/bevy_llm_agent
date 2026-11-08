@@ -38,6 +38,7 @@ fn main() {
             AutoScrollToBottomPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(Update, (update_chat_messages, enable_send_button))
+        .add_systems(Update, update_chat_messages)
+        .add_observer(enable_send_button)
         .run();
 }

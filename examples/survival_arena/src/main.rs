@@ -9,7 +9,7 @@ use bevy::{
 };
 use bevy_llm_agent::LlmAgentPlugin;
 
-use game::{AwaitingAgentOutputs, ElapsedTime, GamePhase};
+use game::{ElapsedTime, GamePhase};
 use ui::{DialogueView, SelectedCharacter};
 
 fn main() {
@@ -20,7 +20,6 @@ fn main() {
         .init_resource::<SelectedCharacter>()
         .init_resource::<DialogueView>()
         .init_resource::<GamePhase>()
-        .init_resource::<AwaitingAgentOutputs>()
         .insert_resource(ElapsedTime(0.0))
         .insert_resource(UiTheme(create_dark_theme()))
         .add_plugins((
@@ -40,11 +39,8 @@ fn main() {
                 ui::update_dialogue_panel,
                 ui::update_character_detail,
                 ui::update_character_sprites,
-                (
-                    game::track_awaiting_agent_outputs,
-                    game::check_awaiting_moves,
-                )
-                    .chain(),
+                game::exit_on_agent_error,
+                game::check_awaiting_moves,
                 game::advance_world,
                 ui::sync_continue_button,
             ),

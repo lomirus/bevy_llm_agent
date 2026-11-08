@@ -1,27 +1,26 @@
 use std::{
     collections::HashMap,
     io::{BufRead, BufReader},
-    sync::mpsc,
 };
 
 use serde::{Deserialize, Serialize};
 
 use crate::{
     agent::DialogMessage,
-    api::{DeltaResult, StreamOutcome, emit_delta},
+    api::{EventSender, StreamOutcome, emit},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
     provider::Reasoning as AgentReasoning,
     tool::Tool as AgentTool,
 };
 
 pub(super) fn stream_response(
-    dialog: &mut Vec<DialogMessage>,
+    dialog: &[DialogMessage],
     model: &str,
     reasoning: AgentReasoning,
     tools: &[AgentTool],
     api_base_url: &str,
     api_key: &str,
-    tx: &mpsc::Sender<DeltaResult>,
+    tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
     let body = build_request(dialog, model, reasoning, tools);
     let url = format!("{api_base_url}/responses");
@@ -48,7 +47,7 @@ pub(super) fn stream_response(
         return Err(AgentMessageError::Other(message));
     }
 
-    consume_sse_stream(BufReader::new(response.body_mut().as_reader()), dialog, tx)
+    consume_sse_stream(BufReader::new(response.body_mut().as_reader()), tx)
 }
 
 fn build_request(
@@ -132,8 +131,7 @@ fn dialog_to_input(dialog: &[DialogMessage]) -> Vec<InputItem> {
 
 fn consume_sse_stream(
     reader: impl BufRead,
-    dialog: &mut Vec<DialogMessage>,
-    tx: &mpsc::Sender<DeltaResult>,
+    tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
     let mut tool_calls = HashMap::<String, (String, String)>::new();
 
@@ -156,10 +154,10 @@ fn consume_sse_stream(
 
         match event {
             Event::ReasoningTextDelta { delta } => {
-                emit_delta(dialog, tx, AgentMessageDelta::ReasoningContent(delta));
+                emit(tx, AgentMessageDelta::ReasoningContent(delta))?;
             }
             Event::OutputTextDelta { delta } => {
-                emit_delta(dialog, tx, AgentMessageDelta::Content(delta));
+                emit(tx, AgentMessageDelta::Content(delta))?;
             }
             Event::OutputItemAdded { item } if item.r#type == "function_call" => {
                 let (Some(item_id), Some(call_id), Some(name)) = (item.id, item.call_id, item.name)
@@ -170,15 +168,14 @@ fn consume_sse_stream(
                 };
                 let arguments = item.arguments.unwrap_or_default();
                 tool_calls.insert(item_id, (call_id.clone(), arguments.clone()));
-                emit_delta(
-                    dialog,
+                emit(
                     tx,
                     AgentMessageDelta::ToolCall {
                         name,
                         arguments,
                         tool_call_id: call_id,
                     },
-                );
+                )?;
             }
             Event::FunctionCallArgumentsDelta { item_id, delta } => {
                 let Some((call_id, arguments)) = tool_calls.get_mut(&item_id) else {
@@ -187,15 +184,14 @@ fn consume_sse_stream(
                     )));
                 };
                 arguments.push_str(&delta);
-                emit_delta(
-                    dialog,
+                emit(
                     tx,
                     AgentMessageDelta::ToolCall {
                         name: String::new(),
                         arguments: delta,
                         tool_call_id: call_id.clone(),
                     },
-                );
+                )?;
             }
             Event::FunctionCallArgumentsDone { item_id, arguments } => {
                 let Some((call_id, streamed_arguments)) = tool_calls.get_mut(&item_id) else {
@@ -205,15 +201,14 @@ fn consume_sse_stream(
                 };
                 if let Some(remaining) = arguments.strip_prefix(streamed_arguments.as_str()) {
                     if !remaining.is_empty() {
-                        emit_delta(
-                            dialog,
+                        emit(
                             tx,
                             AgentMessageDelta::ToolCall {
                                 name: String::new(),
                                 arguments: remaining.to_owned(),
                                 tool_call_id: call_id.clone(),
                             },
-                        );
+                        )?;
                     }
                     *streamed_arguments = arguments;
                 } else {

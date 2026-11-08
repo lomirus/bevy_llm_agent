@@ -1,25 +1,31 @@
 mod chat_completion;
 mod responses;
 
-use std::sync::mpsc;
-
 use crate::{
-    agent::{self, Agent, ApiDialect, DialogMessage},
+    agent::{Agent, ApiDialect},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
     tool::Tool,
 };
-
-pub(crate) type DeltaResult = Result<AgentMessageDelta, AgentMessageError>;
 
 pub(crate) enum StreamOutcome {
     Finished,
     ToolCalls,
 }
 
+/// Sent from a request worker to the agent.
+pub(crate) enum StreamEvent {
+    Delta(AgentMessageDelta),
+    /// The last event of a request.
+    End(Result<StreamOutcome, AgentMessageError>),
+}
+
+pub(crate) type EventSender = crossbeam_channel::Sender<StreamEvent>;
+
+/// Send one request for the agent's dialog, streaming deltas through `tx`.
 pub(crate) fn stream_response(
-    agent: &mut Agent,
+    agent: &Agent,
     tools: &[Tool],
-    tx: &mpsc::Sender<DeltaResult>,
+    tx: &EventSender,
 ) -> Result<StreamOutcome, AgentMessageError> {
     let Agent {
         api_dialect,
@@ -47,11 +53,8 @@ pub(crate) fn stream_response(
     }
 }
 
-pub(crate) fn emit_delta(
-    dialog: &mut Vec<DialogMessage>,
-    tx: &mpsc::Sender<DeltaResult>,
-    delta: AgentMessageDelta,
-) {
-    agent::apply_delta(dialog, &delta);
-    tx.send(Ok(delta)).unwrap();
+/// Fails once the agent stops listening, e.g. after it is despawned, which ends the request.
+pub(crate) fn emit(tx: &EventSender, delta: AgentMessageDelta) -> Result<(), AgentMessageError> {
+    tx.send(StreamEvent::Delta(delta))
+        .map_err(|_| AgentMessageError::Other("the agent is no longer listening".to_owned()))
 }

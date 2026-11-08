@@ -1,7 +1,7 @@
 use bevy::{prelude::*, ui_widgets::Activate};
-use bevy_llm_agent::messages::{
-    agent_message::{AgentMessage, AgentMessageDelta},
-    user_message::UserMessage,
+use bevy_llm_agent::{
+    agent::Responding,
+    messages::{agent_message::AgentMessage, user_message::UserMessage},
 };
 use rand::random_range;
 use schemars::JsonSchema;
@@ -89,20 +89,15 @@ pub(crate) enum GamePhase {
     #[default]
     AwaitingContinue,
     /// Idle characters were prompted; wait until every character has a move target
-    /// (or is dead) and all prompted agent outputs have finished.
+    /// (or is dead) and no agent is still responding.
     AwaitingMoves,
     /// Targets are set; coordinates advance with real time.
     Moving,
 }
 
-/// Characters prompted this round whose agent output has not finished yet.
-#[derive(Resource, Default)]
-pub(crate) struct AwaitingAgentOutputs(pub(crate) Vec<Entity>);
-
 pub(crate) fn on_continue_dialogue(
     _activate: On<Activate>,
     mut phase: ResMut<GamePhase>,
-    mut awaiting_outputs: ResMut<AwaitingAgentOutputs>,
     characters: Query<(Entity, &Character)>,
     mut sender: MessageWriter<UserMessage>,
 ) {
@@ -119,35 +114,27 @@ pub(crate) fn on_continue_dialogue(
     }
     idle.sort_by_key(|(_, character)| character.id);
 
-    awaiting_outputs.0 = idle.iter().map(|(entity, _)| *entity).collect();
     for (entity, _) in &idle {
         sender.write(UserMessage::new(*entity, CONTINUE_ACTION_PROMPT));
     }
     *phase = GamePhase::AwaitingMoves;
 }
 
-pub(crate) fn track_awaiting_agent_outputs(
-    mut awaiting_outputs: ResMut<AwaitingAgentOutputs>,
+pub(crate) fn exit_on_agent_error(
     mut messages: MessageReader<AgentMessage>,
     mut app_exit: MessageWriter<AppExit>,
 ) {
     for AgentMessage { entity, delta } in messages.read() {
-        match delta {
-            Ok(AgentMessageDelta::Finish) => {
-                awaiting_outputs.0.retain(|&e| e != *entity);
-            }
-            Ok(_) => {}
-            Err(err) => {
-                error!("agent {entity} failed: {err:?}");
-                app_exit.write(AppExit::error());
-            }
+        if let Err(err) = delta {
+            error!("agent {entity} failed: {err:?}");
+            app_exit.write(AppExit::error());
         }
     }
 }
 
 pub(crate) fn check_awaiting_moves(
     mut phase: ResMut<GamePhase>,
-    awaiting_outputs: Res<AwaitingAgentOutputs>,
+    responding: Query<(), With<Responding>>,
     characters: Query<&Character>,
 ) {
     if *phase != GamePhase::AwaitingMoves {
@@ -156,7 +143,7 @@ pub(crate) fn check_awaiting_moves(
     let targets_ready = characters
         .iter()
         .all(|character| character.is_dead || character.moving_target.is_some());
-    if targets_ready && awaiting_outputs.0.is_empty() {
+    if targets_ready && responding.is_empty() {
         *phase = GamePhase::Moving;
     }
 }

@@ -16,11 +16,8 @@ use bevy::{
     ui_widgets::{Activate, ControlOrientation, ScrollArea},
 };
 use bevy_llm_agent::{
-    agent::{Agent, DialogMessage},
-    messages::{
-        agent_message::{AgentMessage, AgentMessageDelta},
-        user_message::UserMessage,
-    },
+    agent::{Agent, DialogMessage, Responding},
+    messages::user_message::UserMessage,
 };
 
 use crate::auto_scroll::AutoScrollToBottom;
@@ -261,13 +258,9 @@ pub(crate) fn update_chat_messages(
 }
 
 pub(crate) fn enable_send_button(
-    button: Single<Entity, (With<SendButton>, With<InteractionDisabled>)>,
-    mut messages: MessageReader<AgentMessage>,
+    _: On<Remove<Responding>>,
+    button: Single<Entity, With<SendButton>>,
     mut commands: Commands,
 ) {
-    for AgentMessage { delta, .. } in messages.read() {
-        if let Ok(AgentMessageDelta::Finish) | Err(_) = delta {
-            commands.entity(*button).remove::<InteractionDisabled>();
-        }
-    }
+    commands.entity(*button).remove::<InteractionDisabled>();
 }

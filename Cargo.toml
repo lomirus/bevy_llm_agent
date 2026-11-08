@@ -28,7 +28,6 @@ default-features = false
 bevy = { workspace = true, features = ["bevy_log"] }
 bevy-llm-agent-macros = { version = "0.1.0", path = "macros" }
 crossbeam-channel = "0.5.16"
-oneshot = { version = "0.2.1", features = ["std"] }
 schemars = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
