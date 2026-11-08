@@ -2,6 +2,7 @@
 
 pub mod deepseek;
 pub mod moonshot;
+pub mod openai;
 mod thinking;
 
 use std::marker::PhantomData;
@@ -9,7 +10,7 @@ use std::marker::PhantomData;
 use crate::agent::ApiDialect;
 
 pub use thinking::Thinking;
-pub(crate) use thinking::sealed::{Reasoning, ReasoningEffort, Sealed};
+pub(crate) use thinking::sealed::{Reasoning, ReasoningEffort, ReasoningFormat, Sealed};
 
 /// Endpoint and credential source for a particular model.
 ///

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     agent::{AgentBuilder, ApiDialect, DialogMessage},
-    provider::{ModelPreset, Reasoning, Thinking},
+    provider::{ModelPreset, Reasoning, ReasoningFormat, Thinking},
 };
 
 #[derive(Component, Default, Clone)]
@@ -11,6 +11,7 @@ pub struct Agent {
     pub model: String,
     pub dialog: Vec<DialogMessage>,
     pub(crate) reasoning: Reasoning,
+    pub(crate) reasoning_format: ReasoningFormat,
     pub(crate) api_base_url: String,
     pub(crate) api_key: String,
 }

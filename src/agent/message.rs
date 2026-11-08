@@ -10,6 +10,7 @@ pub enum DialogMessage {
         content: String,
         reasoning_content: String,
         tool_calls: Vec<ToolCall>,
+        encrypted_reasoning: EncryptedReasoning,
     },
     Tool {
         id: String,
@@ -31,3 +32,8 @@ pub struct ToolCall {
     pub name: String,
     pub arguments: String,
 }
+
+/// Reasoning a provider returned encrypted, such as OpenAI's, which is sent back unchanged in
+/// later requests so the model keeps its context across tool calls.
+#[derive(Clone, Debug, Default)]
+pub struct EncryptedReasoning(pub(crate) Vec<serde_json::Value>);

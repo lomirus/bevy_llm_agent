@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     agent::{Agent, DialogMessage},
-    api::{EventSender, StreamOutcome, emit, other, post_sse},
+    api::{EventSender, StreamEvent, StreamOutcome, emit, other, post_sse, send},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
-    provider::Reasoning as AgentReasoning,
+    provider::{Reasoning as AgentReasoning, ReasoningFormat},
     tool::Tool as AgentTool,
 };
 
@@ -84,6 +84,18 @@ pub(super) fn stream_response(
                     )));
                 }
             }
+            // Encrypted reasoning has to be sent back with the tool call outputs.
+            Event::OutputItemDone { item }
+                if item["type"] == "reasoning" && !item["encrypted_content"].is_null() =>
+            {
+                send(tx, StreamEvent::EncryptedReasoning(item))?;
+            }
+            Event::Error { code, message } => {
+                return Err(AgentMessageError::Other(match code {
+                    Some(code) => format!("{code}: {message}"),
+                    None => message,
+                }));
+            }
             Event::Completed { response } => {
                 return if response
                     .output
@@ -130,14 +142,26 @@ fn build_request<'a>(agent: &'a Agent, tools: &'a [AgentTool]) -> Request<'a> {
         AgentReasoning::Enabled(effort) => effort.map(|effort| effort.as_str()),
     };
 
+    let encrypted = agent.reasoning_format == ReasoningFormat::Encrypted;
     Request {
         model: &agent.model,
-        input: agent.dialog.iter().flat_map(input_items).collect(),
+        input: agent
+            .dialog
+            .iter()
+            .flat_map(|message| input_items(message, agent.reasoning_format))
+            .collect(),
         reasoning: effort.map(|effort| Reasoning { effort }),
         text: Text {
             format: TextFormat { r#type: "text" },
         },
         stream: true,
+        // Keep requests stateless; reasoning comes back encrypted instead.
+        store: encrypted.then_some(false),
+        include: if encrypted {
+            &["reasoning.encrypted_content"]
+        } else {
+            &[]
+        },
         tools: tools
             .iter()
             .map(|tool| Tool {
@@ -150,7 +174,7 @@ fn build_request<'a>(agent: &'a Agent, tools: &'a [AgentTool]) -> Request<'a> {
     }
 }
 
-fn input_items(message: &DialogMessage) -> Vec<InputItem<'_>> {
+fn input_items(message: &DialogMessage, reasoning_format: ReasoningFormat) -> Vec<InputItem<'_>> {
     match message {
         DialogMessage::System { content } => vec![InputItem::Message {
             role: "system",
@@ -164,8 +188,13 @@ fn input_items(message: &DialogMessage) -> Vec<InputItem<'_>> {
             content,
             reasoning_content,
             tool_calls,
+            encrypted_reasoning,
         } => {
-            let reasoning = (!reasoning_content.is_empty()).then(|| InputItem::Reasoning {
+            let encrypted = encrypted_reasoning.0.iter().map(InputItem::Raw);
+            let plain = (encrypted_reasoning.0.is_empty()
+                && reasoning_format == ReasoningFormat::Plaintext
+                && !reasoning_content.is_empty())
+            .then(|| InputItem::Reasoning {
                 content: [ReasoningContent {
                     r#type: "reasoning_text",
                     text: reasoning_content,
@@ -180,7 +209,7 @@ fn input_items(message: &DialogMessage) -> Vec<InputItem<'_>> {
                 name: &tool_call.name,
                 arguments: &tool_call.arguments,
             });
-            reasoning.into_iter().chain(message).chain(calls).collect()
+            encrypted.chain(plain).chain(message).chain(calls).collect()
         }
         DialogMessage::Tool { id, result } => vec![InputItem::FunctionCallOutput {
             call_id: id,
@@ -197,6 +226,10 @@ struct Request<'a> {
     reasoning: Option<Reasoning>,
     text: Text,
     stream: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    store: Option<bool>,
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    include: &'static [&'static str],
     tools: Vec<Tool<'a>>,
 }
 
@@ -219,6 +252,9 @@ enum InputItem<'a> {
         call_id: &'a str,
         output: &'a str,
     },
+    /// An output item sent back as it was received.
+    #[serde(untagged)]
+    Raw(&'a serde_json::Value),
 }
 
 #[derive(Serialize)]
@@ -259,6 +295,8 @@ enum Event {
     OutputTextDelta { delta: String },
     #[serde(rename = "response.output_item.added")]
     OutputItemAdded { item: OutputItem },
+    #[serde(rename = "response.output_item.done")]
+    OutputItemDone { item: serde_json::Value },
     #[serde(rename = "response.function_call_arguments.delta")]
     FunctionCallArgumentsDelta { item_id: String, delta: String },
     #[serde(rename = "response.function_call_arguments.done")]
@@ -269,6 +307,11 @@ enum Event {
     Incomplete { response: Response },
     #[serde(rename = "response.failed")]
     Failed { response: Response },
+    #[serde(rename = "error")]
+    Error {
+        code: Option<String>,
+        message: String,
+    },
     #[serde(other)]
     Other,
 }

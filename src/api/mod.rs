@@ -19,6 +19,8 @@ pub(crate) enum StreamOutcome {
 /// Sent from a request worker to the agent.
 pub(crate) enum StreamEvent {
     Delta(AgentMessageDelta),
+    /// A reasoning output item to send back unchanged, see [`EncryptedReasoning`](crate::agent::EncryptedReasoning).
+    EncryptedReasoning(serde_json::Value),
     /// The last event of a request.
     End(Result<StreamOutcome, AgentMessageError>),
 }
@@ -37,9 +39,13 @@ pub(crate) fn stream_response(
     }
 }
 
-/// Fails once the agent stops listening, e.g. after it is despawned, which ends the request.
 pub(crate) fn emit(tx: &EventSender, delta: AgentMessageDelta) -> Result<(), AgentMessageError> {
-    tx.send(StreamEvent::Delta(delta))
+    send(tx, StreamEvent::Delta(delta))
+}
+
+/// Fails once the agent stops listening, e.g. after it is despawned, which ends the request.
+pub(crate) fn send(tx: &EventSender, event: StreamEvent) -> Result<(), AgentMessageError> {
+    tx.send(event)
         .map_err(|_| AgentMessageError::Other("the agent is no longer listening".to_owned()))
 }
 

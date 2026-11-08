@@ -89,6 +89,7 @@ impl<'a, T: Thinking> AgentBuilder<'a, T> {
             api_dialect: self.preset.api_dialect,
             model: self.preset.model.to_owned(),
             reasoning: self.thinking.reasoning(),
+            reasoning_format: T::REASONING_FORMAT,
             dialog: self
                 .system_prompt
                 .into_iter()

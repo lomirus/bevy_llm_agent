@@ -4,7 +4,7 @@ use crate::{
     agent::{Agent, DialogMessage},
     api::{EventSender, StreamOutcome, emit, other, post_sse},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
-    provider::Reasoning,
+    provider::{Reasoning, ReasoningEffort, ReasoningFormat},
     tool::Tool,
 };
 
@@ -74,17 +74,22 @@ pub(super) fn stream_response(
 }
 
 fn build_request<'a>(agent: &'a Agent, tools: &'a [Tool]) -> Request<'a> {
-    let (thinking_type, reasoning_effort) = match agent.reasoning {
-        Reasoning::Disabled => ("disabled", None),
-        Reasoning::Enabled(effort) => ("enabled", effort.map(|effort| effort.as_str())),
+    let effort = |effort: Option<ReasoningEffort>| effort.map(ReasoningEffort::as_str);
+    let (thinking, reasoning_effort) = match (agent.reasoning_format, agent.reasoning) {
+        (ReasoningFormat::Plaintext, Reasoning::Disabled) => (Some("disabled"), None),
+        (ReasoningFormat::Plaintext, Reasoning::Enabled(level)) => (Some("enabled"), effort(level)),
+        (ReasoningFormat::Encrypted, Reasoning::Disabled) => (None, Some("none")),
+        (ReasoningFormat::Encrypted, Reasoning::Enabled(level)) => (None, effort(level)),
     };
 
     Request {
-        messages: agent.dialog.iter().map(Message::from).collect(),
+        messages: agent
+            .dialog
+            .iter()
+            .map(|message| Message::new(message, agent.reasoning_format))
+            .collect(),
         model: &agent.model,
-        thinking: Thinking {
-            r#type: thinking_type,
-        },
+        thinking: thinking.map(|r#type| Thinking { r#type }),
         reasoning_effort,
         response_format: ResponseFormat { r#type: "text" },
         stream: true,
@@ -106,7 +111,8 @@ fn build_request<'a>(agent: &'a Agent, tools: &'a [Tool]) -> Request<'a> {
 struct Request<'a> {
     messages: Vec<Message<'a>>,
     model: &'a str,
-    thinking: Thinking,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    thinking: Option<Thinking>,
     #[serde(skip_serializing_if = "Option::is_none")]
     reasoning_effort: Option<&'static str>,
     response_format: ResponseFormat,
@@ -138,8 +144,8 @@ enum Message<'a> {
     },
 }
 
-impl<'a> From<&'a DialogMessage> for Message<'a> {
-    fn from(message: &'a DialogMessage) -> Self {
+impl<'a> Message<'a> {
+    fn new(message: &'a DialogMessage, reasoning_format: ReasoningFormat) -> Self {
         match message {
             DialogMessage::System { content } => Self::System { content },
             DialogMessage::User { content } => Self::User { content },
@@ -147,9 +153,14 @@ impl<'a> From<&'a DialogMessage> for Message<'a> {
                 content,
                 reasoning_content,
                 tool_calls,
+                ..
             } => Self::Assistant {
                 content,
-                reasoning_content,
+                // Chat Completions has no way to send encrypted reasoning back.
+                reasoning_content: match reasoning_format {
+                    ReasoningFormat::Plaintext => reasoning_content,
+                    ReasoningFormat::Encrypted => "",
+                },
                 tool_calls: tool_calls
                     .iter()
                     .map(|tool_call| RequestToolCall {

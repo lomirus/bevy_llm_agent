@@ -57,6 +57,7 @@ fn dialog_entries(dialog: &[DialogMessage]) -> Vec<(&'static str, String)> {
                 content,
                 reasoning_content,
                 tool_calls: calls,
+                ..
             } => {
                 if !reasoning_content.is_empty() {
                     entries.push(("Reasoning", reasoning_content.clone()));

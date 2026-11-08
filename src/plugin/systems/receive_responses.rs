@@ -24,6 +24,9 @@ pub(crate) fn receive_responses(
                         delta: Ok(delta),
                     });
                 }
+                Ok(StreamEvent::EncryptedReasoning(item)) => {
+                    agent::push_encrypted_reasoning(&mut agent.dialog, item);
+                }
                 Ok(StreamEvent::End(end)) => break Some(end),
                 Err(TryRecvError::Empty) => break None,
                 Err(TryRecvError::Disconnected) => {
