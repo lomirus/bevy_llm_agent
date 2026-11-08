@@ -5,12 +5,12 @@ const GLOBAL_BASE_URL: &str = "https://api.moonshot.ai/v1";
 const CHINA_BASE_URL: &str = "https://api.moonshot.cn/v1";
 const API_KEY_ENV: &str = "MOONSHOT_API_KEY";
 
-/// Thinking options for [`K3`].
+/// Thinking options for [`K3`], [`K3_1_PRO`], and [`K3_1_PRO_HIGHSPEED`].
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum K3Thinking {
     Low,
-    #[default]
     High,
+    #[default]
     Max,
 }
 
@@ -28,14 +28,14 @@ impl Sealed for K3Thinking {
 
 /// Thinking options for [`K2_7_CODE`] and [`K2_7_CODE_HIGHSPEED`], which always think.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub enum K2_7CodeThinking {
+pub enum K2_7Thinking {
     #[default]
     High,
 }
 
-impl Thinking for K2_7CodeThinking {}
+impl Thinking for K2_7Thinking {}
 
-impl Sealed for K2_7CodeThinking {
+impl Sealed for K2_7Thinking {
     fn reasoning(self) -> Reasoning {
         match self {
             Self::High => Reasoning::Enabled(None),
@@ -43,17 +43,17 @@ impl Sealed for K2_7CodeThinking {
     }
 }
 
-/// Thinking options for [`K2_6`] and [`K2_5`].
+/// Thinking options for [`K2_6`].
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
-pub enum K2Thinking {
-    #[default]
+pub enum K2_6Thinking {
     Off,
+    #[default]
     High,
 }
 
-impl Thinking for K2Thinking {}
+impl Thinking for K2_6Thinking {}
 
-impl Sealed for K2Thinking {
+impl Sealed for K2_6Thinking {
     fn reasoning(self) -> Reasoning {
         match self {
             Self::Off => Reasoning::Disabled,
@@ -70,8 +70,24 @@ pub const K3: ModelPreset<'static, K3Thinking> = ModelPreset::new(
     API_KEY_ENV,
 );
 
+/// `kimi-k3.1-pro`.
+pub const K3_1_PRO: ModelPreset<'static, K3Thinking> = ModelPreset::new(
+    ApiDialect::MoonshotChatCompletions,
+    GLOBAL_BASE_URL,
+    "kimi-k3.1-pro",
+    API_KEY_ENV,
+);
+
+/// `kimi-k3.1-pro-highspeed`.
+pub const K3_1_PRO_HIGHSPEED: ModelPreset<'static, K3Thinking> = ModelPreset::new(
+    ApiDialect::MoonshotChatCompletions,
+    GLOBAL_BASE_URL,
+    "kimi-k3.1-pro-highspeed",
+    API_KEY_ENV,
+);
+
 /// `kimi-k2.7-code`.
-pub const K2_7_CODE: ModelPreset<'static, K2_7CodeThinking> = ModelPreset::new(
+pub const K2_7_CODE: ModelPreset<'static, K2_7Thinking> = ModelPreset::new(
     ApiDialect::MoonshotChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k2.7-code",
@@ -79,7 +95,7 @@ pub const K2_7_CODE: ModelPreset<'static, K2_7CodeThinking> = ModelPreset::new(
 );
 
 /// `kimi-k2.7-code-highspeed`.
-pub const K2_7_CODE_HIGHSPEED: ModelPreset<'static, K2_7CodeThinking> = ModelPreset::new(
+pub const K2_7_CODE_HIGHSPEED: ModelPreset<'static, K2_7Thinking> = ModelPreset::new(
     ApiDialect::MoonshotChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k2.7-code-highspeed",
@@ -87,43 +103,39 @@ pub const K2_7_CODE_HIGHSPEED: ModelPreset<'static, K2_7CodeThinking> = ModelPre
 );
 
 /// `kimi-k2.6`.
-pub const K2_6: ModelPreset<'static, K2Thinking> = ModelPreset::new(
+pub const K2_6: ModelPreset<'static, K2_6Thinking> = ModelPreset::new(
     ApiDialect::MoonshotChatCompletions,
     GLOBAL_BASE_URL,
     "kimi-k2.6",
     API_KEY_ENV,
 );
 
-/// `kimi-k2.5`.
-pub const K2_5: ModelPreset<'static, K2Thinking> = ModelPreset::new(
-    ApiDialect::MoonshotChatCompletions,
-    GLOBAL_BASE_URL,
-    "kimi-k2.5",
-    API_KEY_ENV,
-);
-
 /// China API endpoint presets.
 pub mod china {
-    use super::{CHINA_BASE_URL, K2_7CodeThinking, K2Thinking, K3Thinking, ModelPreset};
+    use super::{CHINA_BASE_URL, K2_7Thinking, K2_6Thinking, K3Thinking, ModelPreset};
 
     pub const K3: ModelPreset<'static, K3Thinking> = ModelPreset {
         base_url: CHINA_BASE_URL,
         ..super::K3
     };
-    pub const K2_7_CODE: ModelPreset<'static, K2_7CodeThinking> = ModelPreset {
+    pub const K3_1_PRO: ModelPreset<'static, K3Thinking> = ModelPreset {
+        base_url: CHINA_BASE_URL,
+        ..super::K3_1_PRO
+    };
+    pub const K3_1_PRO_HIGHSPEED: ModelPreset<'static, K3Thinking> = ModelPreset {
+        base_url: CHINA_BASE_URL,
+        ..super::K3_1_PRO_HIGHSPEED
+    };
+    pub const K2_7_CODE: ModelPreset<'static, K2_7Thinking> = ModelPreset {
         base_url: CHINA_BASE_URL,
         ..super::K2_7_CODE
     };
-    pub const K2_7_CODE_HIGHSPEED: ModelPreset<'static, K2_7CodeThinking> = ModelPreset {
+    pub const K2_7_CODE_HIGHSPEED: ModelPreset<'static, K2_7Thinking> = ModelPreset {
         base_url: CHINA_BASE_URL,
         ..super::K2_7_CODE_HIGHSPEED
     };
-    pub const K2_6: ModelPreset<'static, K2Thinking> = ModelPreset {
+    pub const K2_6: ModelPreset<'static, K2_6Thinking> = ModelPreset {
         base_url: CHINA_BASE_URL,
         ..super::K2_6
-    };
-    pub const K2_5: ModelPreset<'static, K2Thinking> = ModelPreset {
-        base_url: CHINA_BASE_URL,
-        ..super::K2_5
     };
 }
