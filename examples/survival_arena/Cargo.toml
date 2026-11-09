@@ -7,7 +7,12 @@ edition = "2024"
 workspace = true
 
 [dependencies]
-bevy = { workspace = true, features = ["2d", "ui", "bevy_feathers"] }
+bevy = { workspace = true, features = [
+    "2d",
+    "ui",
+    "bevy_feathers",
+    "complex_script_segmentation",
+] }
 bevy-llm-agent = { path = "../../" }
 rand = { workspace = true }
 schemars = { workspace = true }

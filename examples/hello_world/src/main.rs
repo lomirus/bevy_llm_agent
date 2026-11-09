@@ -1,7 +1,4 @@
-use bevy::{
-    log::{DEFAULT_FILTER, LogPlugin},
-    prelude::*,
-};
+use bevy::prelude::*;
 use bevy_llm_agent::{prelude::*, provider::deepseek};
 
 fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
@@ -30,19 +27,8 @@ fn update_text(mut texts: Query<&mut Text>, mut agent_messages: MessageReader<Ag
 }
 
 fn main() {
-    // See issue: https://github.com/bevyengine/bevy/issues/22733
-    const FILTER_WGPU_HAL: &str = "wgpu_hal::vulkan::instance=off";
-    // See issue: https://github.com/bevyengine/bevy/issues/24094
-    const FILTER_ICU_PROVIDER: &str = "icu_provider::error=off";
-
     App::new()
-        .add_plugins((
-            DefaultPlugins.set(LogPlugin {
-                filter: format!("{DEFAULT_FILTER},{FILTER_WGPU_HAL},{FILTER_ICU_PROVIDER}"),
-                ..default()
-            }),
-            LlmAgentPlugin,
-        ))
+        .add_plugins((DefaultPlugins, LlmAgentPlugin))
         .add_systems(Startup, setup)
         .add_systems(FixedUpdate, update_text)
         .run();

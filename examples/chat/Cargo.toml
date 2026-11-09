@@ -9,6 +9,7 @@ workspace = true
 [dependencies]
 bevy = { workspace = true, features = [
     "ui",
+    "complex_script_segmentation",
     "bevy_feathers",
     "system_clipboard",
     "system_font_discovery",

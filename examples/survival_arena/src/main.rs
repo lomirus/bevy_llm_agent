@@ -4,7 +4,6 @@ mod ui;
 
 use bevy::{
     feathers::{FeathersPlugins, dark_theme::create_dark_theme, theme::UiTheme},
-    log::{DEFAULT_FILTER, LogPlugin},
     prelude::*,
 };
 use bevy_llm_agent::prelude::*;
@@ -13,9 +12,6 @@ use game::{ElapsedTime, GamePhase};
 use ui::{DialogueView, SelectedCharacter};
 
 fn main() {
-    // See issue: https://github.com/bevyengine/bevy/issues/24094
-    const FILTER_ICU_PROVIDER: &str = "icu_provider::error=off";
-
     App::new()
         .init_resource::<SelectedCharacter>()
         .init_resource::<DialogueView>()
@@ -23,10 +19,7 @@ fn main() {
         .insert_resource(ElapsedTime(0.0))
         .insert_resource(UiTheme(create_dark_theme()))
         .add_plugins((
-            DefaultPlugins.set(LogPlugin {
-                filter: format!("{DEFAULT_FILTER},{FILTER_ICU_PROVIDER}"),
-                ..default()
-            }),
+            DefaultPlugins,
             FeathersPlugins,
             MeshPickingPlugin,
             LlmAgentPlugin,
