@@ -1,6 +1,8 @@
 //! Model presets for [`Agent::builder`](crate::agent::Agent::builder).
 
+pub mod anthropic;
 pub mod deepseek;
+pub mod gemini;
 pub mod moonshot;
 pub mod openai;
 mod thinking;

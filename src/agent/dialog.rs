@@ -1,5 +1,5 @@
 use crate::{
-    agent::{DialogMessage, EncryptedReasoning, ToolCall},
+    agent::{ApiDialect, DialogMessage, RawOutput, ToolCall},
     messages::agent_message::AgentMessageDelta,
 };
 
@@ -31,15 +31,19 @@ pub(crate) fn apply_delta(dialog: &mut Vec<DialogMessage>, delta: &AgentMessageD
     }
 }
 
-pub(crate) fn push_encrypted_reasoning(dialog: &mut Vec<DialogMessage>, item: serde_json::Value) {
-    last_assistant(dialog).encrypted_reasoning.0.push(item);
+pub(crate) fn push_raw_output(
+    dialog: &mut Vec<DialogMessage>,
+    dialect: ApiDialect,
+    item: serde_json::Value,
+) {
+    last_assistant(dialog).raw_output.push(dialect, item);
 }
 
 struct AssistantMut<'a> {
     content: &'a mut String,
     reasoning_content: &'a mut String,
     tool_calls: &'a mut Vec<ToolCall>,
-    encrypted_reasoning: &'a mut EncryptedReasoning,
+    raw_output: &'a mut RawOutput,
 }
 
 /// The assistant message at the end of the dialog, started if there is none.
@@ -49,14 +53,14 @@ fn last_assistant(dialog: &mut Vec<DialogMessage>) -> AssistantMut<'_> {
             content: String::new(),
             reasoning_content: String::new(),
             tool_calls: Vec::new(),
-            encrypted_reasoning: EncryptedReasoning::default(),
+            raw_output: RawOutput::default(),
         });
     }
     let Some(DialogMessage::Assistant {
         content,
         reasoning_content,
         tool_calls,
-        encrypted_reasoning,
+        raw_output,
     }) = dialog.last_mut()
     else {
         unreachable!("an assistant message was just ensured");
@@ -65,6 +69,6 @@ fn last_assistant(dialog: &mut Vec<DialogMessage>) -> AssistantMut<'_> {
         content,
         reasoning_content,
         tool_calls,
-        encrypted_reasoning,
+        raw_output,
     }
 }

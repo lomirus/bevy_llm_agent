@@ -1,9 +1,12 @@
 mod chat_completion;
+mod interactions;
+mod messages;
 mod responses;
 
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, Lines};
 
 use serde::Serialize;
+use ureq::BodyReader;
 
 use crate::{
     agent::{Agent, ApiDialect},
@@ -19,8 +22,8 @@ pub(crate) enum StreamOutcome {
 /// Sent from a request worker to the agent.
 pub(crate) enum StreamEvent {
     Delta(AgentMessageDelta),
-    /// A reasoning output item to send back unchanged, see [`EncryptedReasoning`](crate::agent::EncryptedReasoning).
-    EncryptedReasoning(serde_json::Value),
+    /// An output item to send back unchanged, see [`RawOutput`](crate::agent::RawOutput).
+    RawOutput(ApiDialect, serde_json::Value),
     /// The last event of a request.
     End(Result<StreamOutcome, AgentMessageError>),
 }
@@ -36,6 +39,8 @@ pub(crate) fn stream_response(
     match agent.api_dialect {
         ApiDialect::ChatCompletions => chat_completion::stream_response(agent, tools, tx),
         ApiDialect::Responses => responses::stream_response(agent, tools, tx),
+        ApiDialect::Messages => messages::stream_response(agent, tools, tx),
+        ApiDialect::Interactions => interactions::stream_response(agent, tools, tx),
     }
 }
 
@@ -49,20 +54,34 @@ pub(crate) fn send(tx: &EventSender, event: StreamEvent) -> Result<(), AgentMess
         .map_err(|_| AgentMessageError::Other("the agent is no longer listening".to_owned()))
 }
 
-/// POST `body` to the agent's API and iterate over the `data` of the server-sent events.
+/// POST `body` to the agent's API with the API key in a bearer `Authorization` header and
+/// iterate over the `data` of the server-sent events.
 fn post_sse(
     agent: &Agent,
     path: &str,
     body: &impl Serialize,
-) -> Result<impl Iterator<Item = Result<String, AgentMessageError>>, AgentMessageError> {
+) -> Result<SseData, AgentMessageError> {
+    let authorization = format!("Bearer {}", agent.api_key);
+    post_sse_with_headers(agent, path, &[("Authorization", &authorization)], body)
+}
+
+/// POST `body` to the agent's API with `headers`, which carry the credentials, and iterate over
+/// the `data` of the server-sent events.
+fn post_sse_with_headers(
+    agent: &Agent,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: &impl Serialize,
+) -> Result<SseData, AgentMessageError> {
     let url = format!("{}{path}", agent.api_base_url);
-    let mut response = ureq::post(&url)
+    let mut request = ureq::post(&url)
         .config()
         .http_status_as_error(false)
-        .build()
-        .header("Authorization", format!("Bearer {}", agent.api_key))
-        .send_json(body)
-        .map_err(other)?;
+        .build();
+    for (name, value) in headers {
+        request = request.header(*name, *value);
+    }
+    let mut response = request.send_json(body).map_err(other)?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -74,11 +93,29 @@ fn post_sse(
         }));
     }
 
-    let lines = BufReader::new(response.into_body().into_reader()).lines();
-    Ok(lines.filter_map(|line| match line {
-        Ok(line) => line.strip_prefix("data: ").map(|data| Ok(data.to_owned())),
-        Err(error) => Some(Err(other(error))),
-    }))
+    Ok(SseData(
+        BufReader::new(response.into_body().into_reader()).lines(),
+    ))
+}
+
+/// The `data` of the server-sent events in a response body.
+struct SseData(Lines<BufReader<BodyReader<'static>>>);
+
+impl Iterator for SseData {
+    type Item = Result<String, AgentMessageError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            match self.0.next()? {
+                Ok(line) => {
+                    if let Some(data) = line.strip_prefix("data: ") {
+                        return Some(Ok(data.to_owned()));
+                    }
+                }
+                Err(error) => return Some(Err(other(error))),
+            }
+        }
+    }
 }
 
 fn other(error: impl ToString) -> AgentMessageError {

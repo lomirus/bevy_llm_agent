@@ -7,4 +7,8 @@ pub enum ApiDialect {
     ChatCompletions,
     /// The OpenAI-compatible Responses format (`/responses`).
     Responses,
+    /// The Anthropic-compatible Messages format (`/messages`).
+    Messages,
+    /// The Gemini Interactions format (`/interactions`), used statelessly.
+    Interactions,
 }

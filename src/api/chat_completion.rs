@@ -86,9 +86,13 @@ pub(super) fn stream_response(
 fn build_request<'a>(agent: &'a Agent, tools: &'a [Tool]) -> Request<'a> {
     let effort = |effort: Option<ReasoningEffort>| effort.map(ReasoningEffort::as_str);
     let (thinking, reasoning_effort) = match (agent.reasoning_format, agent.reasoning) {
-        (ReasoningFormat::Plaintext, Reasoning::Disabled) => (Some("disabled"), None),
+        (ReasoningFormat::Plaintext, Reasoning::Disabled | Reasoning::BetweenTools) => {
+            (Some("disabled"), None)
+        }
         (ReasoningFormat::Plaintext, Reasoning::Enabled(level)) => (Some("enabled"), effort(level)),
-        (ReasoningFormat::Encrypted, Reasoning::Disabled) => (None, Some("none")),
+        (ReasoningFormat::Encrypted, Reasoning::Disabled | Reasoning::BetweenTools) => {
+            (None, Some("none"))
+        }
         (ReasoningFormat::Encrypted, Reasoning::Enabled(level)) => (None, effort(level)),
     };
 

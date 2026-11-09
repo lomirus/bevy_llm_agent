@@ -21,8 +21,8 @@ pub(crate) fn receive_responses(
                     agent::apply_delta(&mut agent.dialog, &delta);
                     writer.write(AgentMessage { entity, delta });
                 }
-                Ok(StreamEvent::EncryptedReasoning(item)) => {
-                    agent::push_encrypted_reasoning(&mut agent.dialog, item);
+                Ok(StreamEvent::RawOutput(dialect, item)) => {
+                    agent::push_raw_output(&mut agent.dialog, dialect, item);
                 }
                 Ok(StreamEvent::End(end)) => break Some(end),
                 Err(TryRecvError::Empty) => break None,

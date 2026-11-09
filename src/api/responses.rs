@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    agent::{Agent, DialogMessage},
+    agent::{Agent, ApiDialect, DialogMessage},
     api::{EventSender, StreamEvent, StreamOutcome, emit, other, post_sse, send},
     messages::agent_message::{AgentMessageDelta, AgentMessageError},
     provider::{Reasoning as AgentReasoning, ReasoningFormat},
@@ -93,7 +93,7 @@ pub(super) fn stream_response(
             Event::OutputItemDone { item }
                 if item["type"] == "reasoning" && !item["encrypted_content"].is_null() =>
             {
-                send(tx, StreamEvent::EncryptedReasoning(item))?;
+                send(tx, StreamEvent::RawOutput(ApiDialect::Responses, item))?;
             }
             Event::Error { code, message } => {
                 return Err(AgentMessageError::Other(match code {
@@ -143,7 +143,7 @@ pub(super) fn stream_response(
 
 fn build_request<'a>(agent: &'a Agent, tools: &'a [AgentTool]) -> Request<'a> {
     let effort = match agent.reasoning {
-        AgentReasoning::Disabled => Some("none"),
+        AgentReasoning::Disabled | AgentReasoning::BetweenTools => Some("none"),
         AgentReasoning::Enabled(effort) => effort.map(|effort| effort.as_str()),
     };
 
@@ -193,10 +193,11 @@ fn input_items(message: &DialogMessage, reasoning_format: ReasoningFormat) -> Ve
             content,
             reasoning_content,
             tool_calls,
-            encrypted_reasoning,
+            raw_output,
         } => {
-            let encrypted = encrypted_reasoning.0.iter().map(InputItem::Raw);
-            let plain = (encrypted_reasoning.0.is_empty()
+            let raw = raw_output.items(ApiDialect::Responses);
+            let encrypted = raw.iter().map(InputItem::Raw);
+            let plain = (raw.is_empty()
                 && reasoning_format == ReasoningFormat::Plaintext
                 && !reasoning_content.is_empty())
             .then(|| InputItem::Reasoning {

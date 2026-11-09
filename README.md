@@ -64,7 +64,7 @@ bsn! {
 }
 ```
 
-Presets are available for DeepSeek (`provider::deepseek`), Moonshot (`provider::moonshot`), and OpenAI (`provider::openai`). Other OpenAI-compatible services can be described with `ModelPreset::new`.
+Presets are available in `provider` for OpenAI, Anthropic, Gemini, DeepSeek, and Moonshot. Other compatible services can be described with `ModelPreset::new`.
 
 ### Send a Message
 

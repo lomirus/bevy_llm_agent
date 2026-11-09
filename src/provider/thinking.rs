@@ -36,12 +36,17 @@ pub(crate) mod sealed {
     pub enum Reasoning {
         #[default]
         Disabled,
+        /// Thinking only to write progress updates between tool calls, the lowest setting of
+        /// models that cannot disable thinking. Only Anthropic's `claude-sonnet-5-5` has it; other
+        /// formats treat it as [`Disabled`](Self::Disabled).
+        BetweenTools,
         /// Enabled, with an optional effort level. `None` omits the effort from the request.
         Enabled(Option<ReasoningEffort>),
     }
 
     #[derive(Clone, Copy, Debug, Eq, PartialEq)]
     pub enum ReasoningEffort {
+        Minimal,
         Low,
         Medium,
         High,
@@ -52,6 +57,7 @@ pub(crate) mod sealed {
     impl ReasoningEffort {
         pub fn as_str(self) -> &'static str {
             match self {
+                Self::Minimal => "minimal",
                 Self::Low => "low",
                 Self::Medium => "medium",
                 Self::High => "high",
