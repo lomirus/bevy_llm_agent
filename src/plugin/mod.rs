@@ -1,4 +1,4 @@
 mod core;
 mod systems;
 
-pub use core::LlmAgentPlugin;
+pub use core::{AgentSystems, LlmAgentPlugin};

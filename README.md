@@ -69,14 +69,8 @@ Presets are available for DeepSeek (`provider::deepseek`), Moonshot (`provider::
 ### Send a Message
 
 ```rust
-fn send_message(
-    mut messages: MessageWriter<UserMessage>,
-    agent: Single<Entity, With<Agent>>,
-) {
-    messages.write(UserMessage::new(
-        *agent,
-        "What is the weather in Shenzhen?",
-    ));
+fn send_message(mut commands: Commands, agent: Single<Entity, With<Agent>>) {
+    commands.entity(*agent).prompt("What is the weather in Shenzhen?");
 }
 ```
 

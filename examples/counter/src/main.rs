@@ -12,8 +12,8 @@ use tools::{AddToCounter, GetCounter};
 #[derive(Resource)]
 struct Counter(usize);
 
-fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
-    let entity = commands
+fn setup(mut commands: Commands) {
+    commands
         .spawn_scene(bsn! {
                 Agent::builder(deepseek::FLASH)
                     .thinking(deepseek::Thinking::Off)
@@ -25,12 +25,9 @@ fn setup(mut commands: Commands, mut sender: MessageWriter<UserMessage>) {
                     @AddToCounter
                 ]
         })
-        .id();
-
-    sender.write(UserMessage::new(
-            entity,
+        .prompt(
             "By calling add_to_counter more than once, let the final value obtained by get_counter greater than 10.",
-    ));
+        );
 }
 
 fn print_text(
@@ -90,6 +87,6 @@ fn main() {
             LlmAgentPlugin,
         ))
         .add_systems(Startup, setup)
-        .add_systems(FixedUpdate, print_text)
+        .add_systems(Update, print_text)
         .run();
 }

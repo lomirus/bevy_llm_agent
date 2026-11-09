@@ -96,7 +96,7 @@ pub(crate) fn on_continue_dialogue(
     _activate: On<Activate>,
     mut phase: ResMut<GamePhase>,
     characters: Query<(Entity, &Character)>,
-    mut sender: MessageWriter<UserMessage>,
+    mut commands: Commands,
 ) {
     if *phase != GamePhase::AwaitingContinue {
         return;
@@ -112,7 +112,7 @@ pub(crate) fn on_continue_dialogue(
     idle.sort_by_key(|(_, character)| character.id);
 
     for (entity, _) in &idle {
-        sender.write(UserMessage::new(*entity, CONTINUE_ACTION_PROMPT));
+        commands.entity(*entity).prompt(CONTINUE_ACTION_PROMPT);
     }
     *phase = GamePhase::AwaitingMoves;
 }

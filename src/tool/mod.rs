@@ -26,4 +26,6 @@ pub struct ToolInput<A = NoArgs> {
 
 /// Arguments of a tool that takes none.
 #[derive(Deserialize, JsonSchema)]
+// Keep the doc comment above out of the schema sent to the model.
+#[schemars(description = "")]
 pub struct NoArgs {}

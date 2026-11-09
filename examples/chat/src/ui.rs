@@ -197,7 +197,6 @@ fn on_send_clicked(
     agent: Single<Entity, With<Agent>>,
     button: Single<Entity, With<SendButton>>,
     mut input: Single<&mut EditableText, With<ChatInput>>,
-    mut sender: MessageWriter<UserMessage>,
     mut commands: Commands,
 ) {
     let prompt = input.value().to_string().trim().to_owned();
@@ -206,7 +205,7 @@ fn on_send_clicked(
     }
     input.clear();
     commands.entity(*button).insert(InteractionDisabled);
-    sender.write(UserMessage::new(*agent, prompt));
+    commands.entity(*agent).prompt(prompt);
 }
 
 fn on_chat_input_enter(

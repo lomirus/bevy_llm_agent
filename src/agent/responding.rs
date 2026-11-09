@@ -7,8 +7,8 @@ use crate::{
     tool::Tool,
 };
 
-/// Present on an [`Agent`] while it is responding to a [`UserMessage`](crate::messages::user_message::UserMessage),
-/// including while its tools run. It is removed once the response finishes or fails.
+/// Present on an [`Agent`] while it is responding to a
+/// [`prompt`](crate::agent::AgentCommandsExt::prompt), including while its tools run. It is removed once the response finishes or fails.
 #[derive(Component)]
 pub struct Responding {
     pub(crate) state: ResponseState,
