@@ -29,7 +29,7 @@ impl Sealed for Thinking {
 
 /// `deepseek-flash`.
 pub const FLASH: ModelPreset<Thinking> = ModelPreset::new(
-    ApiDialect::Responses,
+    ApiDialect::ChatCompletions,
     BASE_URL,
     "deepseek-flash",
     API_KEY_ENV,
