@@ -122,8 +122,8 @@ pub(crate) fn exit_on_agent_error(
     mut app_exit: MessageWriter<AppExit>,
 ) {
     for AgentMessage { entity, delta } in messages.read() {
-        if let Err(err) = delta {
-            error!("agent {entity} failed: {err:?}");
+        if let AgentMessageDelta::Finished(Err(error)) = delta {
+            error!("agent {entity} failed: {error}");
             app_exit.write(AppExit::error());
         }
     }

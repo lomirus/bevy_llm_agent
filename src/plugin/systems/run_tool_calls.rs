@@ -25,9 +25,9 @@ pub(crate) fn run_tool_calls(
         if tool_calls.is_empty() {
             world.write_message(AgentMessage {
                 entity,
-                delta: Err(AgentMessageError::Other(
+                delta: AgentMessageDelta::Finished(Err(AgentMessageError::Other(
                     "the model stopped for tool calls without making any".to_owned(),
-                )),
+                ))),
             });
             world.entity_mut(entity).remove::<Responding>();
             continue;
@@ -39,18 +39,15 @@ pub(crate) fn run_tool_calls(
                 None => format!("Error: unknown tool `{}`", tool_call.name),
             };
             let delta = AgentMessageDelta::ToolResult {
+                id: tool_call.id,
                 content,
-                tool_call_id: tool_call.id,
             };
             // A tool may have despawned the agent.
             let Some(mut agent) = world.get_mut::<Agent>(entity) else {
                 continue 'agents;
             };
             agent::apply_delta(&mut agent.dialog, &delta);
-            world.write_message(AgentMessage {
-                entity,
-                delta: Ok(delta),
-            });
+            world.write_message(AgentMessage { entity, delta });
         }
 
         let responding = Responding::start(world.get::<Agent>(entity).unwrap(), tools);

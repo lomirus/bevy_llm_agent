@@ -29,60 +29,65 @@ pub(super) fn stream_response(
             Event::OutputItemAdded { item } if item.r#type == "function_call" => {
                 let (Some(item_id), Some(call_id), Some(name)) = (item.id, item.call_id, item.name)
                 else {
-                    return Err(AgentMessageError::Other(
-                        "function call output item is missing required fields".to_owned(),
+                    return Err(other(
+                        "function call output item is missing required fields",
                     ));
                 };
                 let arguments = item.arguments.unwrap_or_default();
                 tool_calls.insert(item_id, (call_id.clone(), arguments.clone()));
                 emit(
                     tx,
-                    AgentMessageDelta::ToolCall {
+                    AgentMessageDelta::ToolCallStart {
+                        id: call_id.clone(),
                         name,
-                        arguments,
-                        tool_call_id: call_id,
                     },
                 )?;
+                if !arguments.is_empty() {
+                    emit(
+                        tx,
+                        AgentMessageDelta::ToolCallArguments {
+                            id: call_id,
+                            arguments,
+                        },
+                    )?;
+                }
             }
             Event::FunctionCallArgumentsDelta { item_id, delta } => {
                 let Some((call_id, arguments)) = tool_calls.get_mut(&item_id) else {
-                    return Err(AgentMessageError::Other(format!(
+                    return Err(other(format!(
                         "received arguments for unknown function call item: {item_id}"
                     )));
                 };
                 arguments.push_str(&delta);
                 emit(
                     tx,
-                    AgentMessageDelta::ToolCall {
-                        name: String::new(),
+                    AgentMessageDelta::ToolCallArguments {
+                        id: call_id.clone(),
                         arguments: delta,
-                        tool_call_id: call_id.clone(),
                     },
                 )?;
             }
             Event::FunctionCallArgumentsDone { item_id, arguments } => {
                 let Some((call_id, streamed_arguments)) = tool_calls.get_mut(&item_id) else {
-                    return Err(AgentMessageError::Other(format!(
+                    return Err(other(format!(
                         "received completed arguments for unknown function call item: {item_id}"
                     )));
                 };
-                if let Some(remaining) = arguments.strip_prefix(streamed_arguments.as_str()) {
-                    if !remaining.is_empty() {
-                        emit(
-                            tx,
-                            AgentMessageDelta::ToolCall {
-                                name: String::new(),
-                                arguments: remaining.to_owned(),
-                                tool_call_id: call_id.clone(),
-                            },
-                        )?;
-                    }
-                    *streamed_arguments = arguments;
-                } else {
-                    return Err(AgentMessageError::Other(format!(
+                let Some(remaining) = arguments.strip_prefix(streamed_arguments.as_str()) else {
+                    return Err(other(format!(
                         "streamed arguments do not match completed function call: {item_id}"
                     )));
+                };
+                if !remaining.is_empty() {
+                    emit(
+                        tx,
+                        AgentMessageDelta::ToolCallArguments {
+                            id: call_id.clone(),
+                            arguments: remaining.to_owned(),
+                        },
+                    )?;
                 }
+                *streamed_arguments = arguments;
             }
             // Encrypted reasoning has to be sent back with the tool call outputs.
             Event::OutputItemDone { item }

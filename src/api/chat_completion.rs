@@ -51,17 +51,27 @@ pub(super) fn stream_response(
             if tool_call_ids.len() <= index {
                 tool_call_ids.resize(index + 1, None);
             }
-            if let Some(id) = tool_call.id {
-                tool_call_ids[index] = Some(id);
+            let id = match &tool_call_ids[index] {
+                Some(id) => id.clone(),
+                None => {
+                    let (Some(id), Some(name)) = (tool_call.id, tool_call.function.name) else {
+                        return Err(other("a tool call started without an id or a name"));
+                    };
+                    tool_call_ids[index] = Some(id.clone());
+                    emit(
+                        tx,
+                        AgentMessageDelta::ToolCallStart {
+                            id: id.clone(),
+                            name,
+                        },
+                    )?;
+                    id
+                }
+            };
+            let arguments = tool_call.function.arguments;
+            if !arguments.is_empty() {
+                emit(tx, AgentMessageDelta::ToolCallArguments { id, arguments })?;
             }
-            emit(
-                tx,
-                AgentMessageDelta::ToolCall {
-                    name: tool_call.function.name.unwrap_or_default(),
-                    arguments: tool_call.function.arguments,
-                    tool_call_id: tool_call_ids[index].clone().unwrap_or_default(),
-                },
-            )?;
         }
         if let Some(reason) = choice.finish_reason {
             finish_reason = Some(reason);

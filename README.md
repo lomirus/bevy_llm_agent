@@ -85,7 +85,7 @@ fn send_message(
 ```rust
 fn handle_agent_messages(mut messages: MessageReader<AgentMessage>) {
     for message in messages.read() {
-        if let Ok(AgentMessageDelta::Content(text)) = &message.delta {
+        if let AgentMessageDelta::Content(text) = &message.delta {
             print!("{text}");
         }
     }

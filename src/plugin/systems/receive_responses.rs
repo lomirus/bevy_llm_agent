@@ -19,10 +19,7 @@ pub(crate) fn receive_responses(
             match receiver.try_recv() {
                 Ok(StreamEvent::Delta(delta)) => {
                     agent::apply_delta(&mut agent.dialog, &delta);
-                    writer.write(AgentMessage {
-                        entity,
-                        delta: Ok(delta),
-                    });
+                    writer.write(AgentMessage { entity, delta });
                 }
                 Ok(StreamEvent::EncryptedReasoning(item)) => {
                     agent::push_encrypted_reasoning(&mut agent.dialog, item);
@@ -36,16 +33,19 @@ pub(crate) fn receive_responses(
                 }
             }
         };
-        let delta = match end {
+        let result = match end {
             None => continue,
             Some(Ok(StreamOutcome::ToolCalls)) => {
                 responding.state = ResponseState::AwaitingTools;
                 continue;
             }
-            Some(Ok(StreamOutcome::Finished)) => Ok(AgentMessageDelta::Finish),
+            Some(Ok(StreamOutcome::Finished)) => Ok(()),
             Some(Err(error)) => Err(error),
         };
-        writer.write(AgentMessage { entity, delta });
+        writer.write(AgentMessage {
+            entity,
+            delta: AgentMessageDelta::Finished(result),
+        });
         commands.entity(entity).remove::<Responding>();
     }
 }

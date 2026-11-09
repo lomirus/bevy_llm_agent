@@ -39,60 +39,42 @@ fn print_text(
     counter: Res<Counter>,
     mut tool_call_open: Local<bool>,
 ) {
-    for agent_message in agent_messages.read() {
+    for AgentMessage { delta, .. } in agent_messages.read() {
         use AgentMessageDelta::*;
-        let delta = match &agent_message.delta {
-            Ok(delta) => delta,
-            Err(AgentMessageError::Other(msg)) => {
-                error!("{msg}");
-                app_exit.write(AppExit::error());
-                continue;
-            }
-            Err(err) => {
-                error!("{err:?}");
-                app_exit.write(AppExit::error());
-                continue;
-            }
-        };
         match delta {
             Content(text) => {
                 print!("{text}");
                 std::io::stdout().flush().unwrap();
             }
-            ToolCall {
-                name,
-                arguments,
-                tool_call_id,
-            } => {
-                if !name.is_empty() {
-                    if *tool_call_open {
-                        println!(")");
-                    } else {
-                        println!();
-                    }
-                    print!("[TOOL INVOKE] {tool_call_id} => {name}(");
-                    *tool_call_open = true;
+            ToolCallStart { id, name } => {
+                if *tool_call_open {
+                    println!(")");
+                } else {
+                    println!();
                 }
-                print!("{arguments}");
+                print!("[TOOL INVOKE] {id} => {name}(");
+                *tool_call_open = true;
             }
-            ToolResult {
-                content,
-                tool_call_id,
-            } => {
+            ToolCallArguments { arguments, .. } => print!("{arguments}"),
+            ToolResult { id, content } => {
                 if *tool_call_open {
                     println!(")");
                     *tool_call_open = false;
                 }
-                println!("[TOOL RESULT] {} => {}", tool_call_id, content);
+                println!("[TOOL RESULT] {id} => {content}");
             }
-            Finish => {
+            Finished(Ok(())) => {
                 app_exit.write(if counter.0 > 10 {
                     AppExit::Success
                 } else {
                     AppExit::error()
                 });
             }
-            _ => {}
+            Finished(Err(error)) => {
+                error!("{error}");
+                app_exit.write(AppExit::error());
+            }
+            ReasoningContent(_) => {}
         }
     }
 }

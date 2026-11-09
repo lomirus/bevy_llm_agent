@@ -1,4 +1,4 @@
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum DialogMessage {
     System {
         content: String,
@@ -26,7 +26,7 @@ impl DialogMessage {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ToolCall {
     pub id: String,
     pub name: String,
