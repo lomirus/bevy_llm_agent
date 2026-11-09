@@ -1,13 +1,14 @@
 use crate::{
-    agent::{Agent, DialogMessage},
+    agent::{Agent, ApiDialect, DialogMessage},
     provider::{ModelPreset, Thinking},
 };
 use std::{env, error::Error, fmt};
 
 /// An agent configuration builder. See [`Agent::builder`].
 #[derive(Clone)]
-pub struct AgentBuilder<'a, T> {
-    preset: ModelPreset<'a, T>,
+pub struct AgentBuilder<T> {
+    api_dialect: ApiDialect,
+    model: String,
     base_url: String,
     thinking: T,
     api_key_source: ApiKeySource,
@@ -20,10 +21,11 @@ enum ApiKeySource {
     Explicit(String),
 }
 
-impl<'a, T: Thinking> AgentBuilder<'a, T> {
-    pub(crate) fn new(preset: ModelPreset<'a, T>) -> Self {
+impl<T: Thinking> AgentBuilder<T> {
+    pub(crate) fn new(preset: ModelPreset<T>) -> Self {
         Self {
-            preset,
+            api_dialect: preset.api_dialect,
+            model: preset.model.to_owned(),
             base_url: preset.base_url.to_owned(),
             thinking: T::default(),
             api_key_source: ApiKeySource::Environment(preset.api_key_env.to_owned()),
@@ -49,6 +51,12 @@ impl<'a, T: Thinking> AgentBuilder<'a, T> {
     /// Start the dialog with a system prompt.
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
+        self
+    }
+
+    /// Use another model that accepts the same thinking options, e.g. a dated snapshot.
+    pub fn model(mut self, model: impl Into<String>) -> Self {
+        self.model = model.into();
         self
     }
 
@@ -86,8 +94,8 @@ impl<'a, T: Thinking> AgentBuilder<'a, T> {
         };
 
         Ok(Agent {
-            api_dialect: self.preset.api_dialect,
-            model: self.preset.model.to_owned(),
+            api_dialect: self.api_dialect,
+            model: self.model,
             reasoning: self.thinking.reasoning(),
             reasoning_format: T::REASONING_FORMAT,
             dialog: self

@@ -29,7 +29,7 @@ impl Agent {
     ///     .build()
     ///     .unwrap();
     /// ```
-    pub fn builder<T: Thinking>(preset: ModelPreset<'_, T>) -> AgentBuilder<'_, T> {
+    pub fn builder<T: Thinking>(preset: ModelPreset<T>) -> AgentBuilder<T> {
         AgentBuilder::new(preset)
     }
 }

@@ -14,18 +14,21 @@ pub(crate) use thinking::sealed::{Reasoning, ReasoningEffort, ReasoningFormat, S
 
 /// Endpoint and credential source for a particular model.
 ///
+/// To pick values at runtime, e.g. from a config file, start from a preset and override them
+/// with [`AgentBuilder`](crate::agent::AgentBuilder).
+///
 /// `T` is the set of thinking options the model accepts; its
 /// [`Default`] value is the model's default thinking level.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct ModelPreset<'a, T> {
+pub struct ModelPreset<T> {
     pub api_dialect: ApiDialect,
-    pub base_url: &'a str,
-    pub model: &'a str,
-    pub api_key_env: &'a str,
+    pub base_url: &'static str,
+    pub model: &'static str,
+    pub api_key_env: &'static str,
     thinking: PhantomData<T>,
 }
 
-impl<'a, T: Thinking> ModelPreset<'a, T> {
+impl<T: Thinking> ModelPreset<T> {
     /// Describe a model that accepts the thinking options `T`.
     ///
     /// ```
@@ -40,9 +43,9 @@ impl<'a, T: Thinking> ModelPreset<'a, T> {
     /// ```
     pub const fn new(
         api_dialect: ApiDialect,
-        base_url: &'a str,
-        model: &'a str,
-        api_key_env: &'a str,
+        base_url: &'static str,
+        model: &'static str,
+        api_key_env: &'static str,
     ) -> Self {
         Self {
             api_dialect,

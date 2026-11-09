@@ -28,7 +28,7 @@ impl Sealed for Thinking {
 }
 
 /// `deepseek-flash`.
-pub const FLASH: ModelPreset<'static, Thinking> = ModelPreset::new(
+pub const FLASH: ModelPreset<Thinking> = ModelPreset::new(
     ApiDialect::Responses,
     BASE_URL,
     "deepseek-flash",
@@ -36,7 +36,7 @@ pub const FLASH: ModelPreset<'static, Thinking> = ModelPreset::new(
 );
 
 /// `deepseek-v4-pro`.
-pub const V4_PRO: ModelPreset<'static, Thinking> = ModelPreset::new(
+pub const V4_PRO: ModelPreset<Thinking> = ModelPreset::new(
     ApiDialect::ChatCompletions,
     BASE_URL,
     "deepseek-v4-pro",

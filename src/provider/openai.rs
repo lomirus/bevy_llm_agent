@@ -64,15 +64,15 @@ impl Sealed for TerraThinking {
 }
 
 /// `gpt-6-astra`.
-pub const GPT_6_ASTRA: ModelPreset<'static, AstraThinking> =
+pub const GPT_6_ASTRA: ModelPreset<AstraThinking> =
     ModelPreset::new(ApiDialect::Responses, BASE_URL, "gpt-6-astra", API_KEY_ENV);
 
 /// `gpt-6.1-sol`.
-pub const GPT_6_1_SOL: ModelPreset<'static, AstraThinking> =
+pub const GPT_6_1_SOL: ModelPreset<AstraThinking> =
     ModelPreset::new(ApiDialect::Responses, BASE_URL, "gpt-6.1-sol", API_KEY_ENV);
 
 /// `gpt-6.1-terra`.
-pub const GPT_6_1_TERRA: ModelPreset<'static, TerraThinking> = ModelPreset::new(
+pub const GPT_6_1_TERRA: ModelPreset<TerraThinking> = ModelPreset::new(
     ApiDialect::Responses,
     BASE_URL,
     "gpt-6.1-terra",
@@ -80,5 +80,5 @@ pub const GPT_6_1_TERRA: ModelPreset<'static, TerraThinking> = ModelPreset::new(
 );
 
 /// `gpt-6-luna`.
-pub const GPT_6_LUNA: ModelPreset<'static, TerraThinking> =
+pub const GPT_6_LUNA: ModelPreset<TerraThinking> =
     ModelPreset::new(ApiDialect::Responses, BASE_URL, "gpt-6-luna", API_KEY_ENV);
